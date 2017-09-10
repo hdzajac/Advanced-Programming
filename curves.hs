@@ -38,6 +38,7 @@ connect (Curve s1 l1) (Curve s2 l2) = (curve s1 (l1++s2:l2))
 rotate :: Curve -> Double -> Curve
 rotate (Curve s l) degAngle =  (curve (rotatePoint (toRadians degAngle) s ) (map (rotatePoint (toRadians degAngle)) l ) )
 
+
 translate :: Curve -> Point -> Curve
 translate (Curve s l) p
   | s /= p = (curve (translatePoint s vector) (map (translatePoint vector) l))
@@ -71,6 +72,10 @@ height (Curve s l) = (pointY p2) - (pointY p1)
 toList :: Curve -> [Point]
 toList (Curve s l) = s:l
  
+normalize :: Curve -> Curve
+normalize (Curve s l) = translate (Curve s l) secretPoint
+   where (p1,_) = bbox(Curve s l)
+         secretPoint  = (point (- (pointX p1) + (pointX s), - (pointY p1) + (pointY s)))
 -------- Utils ------------------
 
 toRadians :: Double -> Double
@@ -115,6 +120,7 @@ main = do let p1 = point (0.001, 1.001)
               widthVal = (width c4)
               heightVal = (height c4)
               listRep = toList c4
+              normalizedCurve = normalize c4 
           putStrLn $ "Initial point: " ++ show p1
           putStrLn $ "x: " ++ show x1
           putStrLn $ "y: " ++ show y1
@@ -130,3 +136,4 @@ main = do let p1 = point (0.001, 1.001)
           putStrLn $ "----------------------\ninitial curve: " ++ show c4 ++ "\nbbox" ++ show box ++ "\n---------------------"
           putStrLn $ "width: " ++ show widthVal ++ " height: " ++ show heightVal
           putStrLn $ "as ilst: " ++ show listRep
+          putStrLn $ "normalizedCurve: " ++ show normalizedCurve
