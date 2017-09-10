@@ -63,9 +63,13 @@ bbox (Curve s l) = (point (minimum xs, minimum ys), point (maximum xs, maximum y
 width :: Curve -> Double
 width (Curve s l) = (pointX p2) - (pointX p1)
  where (p1,p2) = bbox(Curve s l)
+
 height :: Curve -> Double
 height (Curve s l) = (pointY p2) - (pointY p1)
  where  (p1,p2) = bbox(Curve s l)
+
+ toList :: Curve -> [Point]
+ toList (Curve s l) = s:l
  
 -------- Utils ------------------
 
