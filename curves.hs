@@ -1,5 +1,6 @@
 data Point = Point Double Double deriving (Show)
 data Curve = Curve Point [Point] deriving (Show)
+data Line = Vertical Double | Horizontal Double deriving (Show)
 
 --------- Point ------------
 
@@ -29,6 +30,7 @@ translatePoint (Point vx vy) (Point x y) = (point ((x + vx),(y + vy)))
 curve :: Point -> [Point] -> Curve
 curve p pl = (Curve p pl)
 
+
 connect :: Curve -> Curve -> Curve
 ------connect (Curve s1 []) (Curve s2 l2) = (curve s1 (s2:l2))
 connect (Curve s1 l1) (Curve s2 l2) = (curve s1 (l1++s2:l2))
@@ -42,34 +44,32 @@ translate (Curve s l) p
   | otherwise = (curve s l) 
   where vector = point (pointX p - pointX s, pointY p - pointY s)
 
-  
-getVector :: Point -> Point -> Point
-getVector (Point x1 y1) (Point x2 y2) = (point (x2-x1,y2-y1) )
-  
-multiply:: Double -> Point -> Point
-multiply p (Point x y)  = (point (x*p,x*p))
-
-
-data Line = Vertical Double | Horizontal Double
 reflect :: Curve -> Line -> Curve
 reflect (Curve s l)(Vertical x) = (curve (translatePoint s (multiply 2.0 (getVector s (point (x,(pointY s)))))) (recursiveReflect l (Vertical x)))
 reflect (Curve s l)(Horizontal y) = (curve (translatePoint s (multiply 2.0 (getVector s (point ((pointX s),y))))) (recursiveReflect l (Horizontal y)))
 
-recursiveReflect:: [Point] -> Line -> [Point]
-recursiveReflect (h:[]) (Vertical x) = (translatePoint h (multiply 2.0 (getVector h (point (x,(pointY h))))))
-recursiveReflect (h:t) (Vertical x) = (translatePoint h (multiply 2.0 (getVector h (point (x,(pointY h)))))): (recursiveReflect t (Vertical x) )
-recursiveReflect (h:[]) (Horizontal y) = (translatePoint h (multiply 2.0 (getVector h (point ((pointX h),y)))))
-recursiveReflect (h:t) (Horizontal y) =  (translatePoint h (multiply 2.0 (getVector h (point ((pointX h),y))))): (recursiveReflect t (Horizontal y) )
+recursiveReflect :: [Point] -> Line -> [Point]
+recursiveReflect [] _ = []
+recursiveReflect (h:[]) (Vertical x) = [(translatePoint h (multiply 2.0 (getVector h (point (x,(pointY h))))))]
+recursiveReflect (h:t) (Vertical x) = (translatePoint h (multiply 2.0 (getVector h (point (x,(pointY h)))))):(recursiveReflect t (Vertical x))
+recursiveReflect (h:[]) (Horizontal y) = [(translatePoint h (multiply 2.0 (getVector h (point ((pointX h),y)))))]
+recursiveReflect (h:t) (Horizontal y) =  (translatePoint h (multiply 2.0 (getVector h (point ((pointX h),y))))):(recursiveReflect t (Horizontal y))
 
 
  
 -------- Utils ------------------
 
-toRadians:: Double -> Double
+toRadians :: Double -> Double
 toRadians x = x * pi/180
 
-toDegrees:: Double -> Double
+toDegrees :: Double -> Double
 toDegrees x = x * 180/pi
+
+getVector :: Point -> Point -> Point
+getVector (Point x1 y1) (Point x2 y2) = (point (x2-x1,y2-y1) )
+  
+multiply:: Double -> Point -> Point
+multiply p (Point x y)  = (point (x*p,y*p))
 
 main :: IO ()
 
@@ -92,8 +92,8 @@ main = do let p1 = point (0.001, 1.001)
               rotatedPoint = rotatePoint (pi/2) p4
               rotatedCurve = rotate c2 90
               translatedCurve = translate c1 p5
-			  --line = Vertical 3.0
-			  --	reflectedCurve = reflect c3 line
+              line1 = Horizontal 1.5
+              reflectedCurve = reflect c3 line1
           putStrLn $ "Initial point: " ++ show p1
           putStrLn $ "x: " ++ show x1
           putStrLn $ "y: " ++ show y1
@@ -105,7 +105,7 @@ main = do let p1 = point (0.001, 1.001)
           putStrLn $ "rotatedPoint: " ++ show rotatedPoint
           putStrLn $ "rotatedCurve: " ++ show rotatedCurve
           putStrLn $ "translatedCurve:" ++ show translatedCurve ++ "\ninitial curve: " ++ show c1 ++ "\ninitial point: " ++ show p1 ++"\ntranslate point: " ++ show p5
-          --putStrLn $ "reflectedCurve: " ++ show reflectedCurve
+          putStrLn $ "----------------------\ninitial curve: " ++ show c3 ++ "\nreflection line" ++ show line1 ++ "\nreflectedCurve: " ++ show reflectedCurve ++ "\n---------------------"
 
           
 
