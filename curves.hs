@@ -60,6 +60,12 @@ bbox (Curve s l) = (point (minimum xs, minimum ys), point (maximum xs, maximum y
   where ys = [pointY p | p <- s:l]
         xs = [pointX p | p <- s:l]
 
+width :: Curve -> Double
+width (Curve s l) = (pointX p2) - (pointX p1)
+ where (p1,p2) = bbox(Curve s l)
+height :: Curve -> Double
+height (Curve s l) = (pointY p2) - (pointY p1)
+ where  (p1,p2) = bbox(Curve s l)
  
 -------- Utils ------------------
 
@@ -102,6 +108,8 @@ main = do let p1 = point (0.001, 1.001)
               line1 = Horizontal 1.5
               reflectedCurve = reflect c3 line1
               box = bbox c4
+              widthVal = (width c4)
+              heightVal = (height c4)
           putStrLn $ "Initial point: " ++ show p1
           putStrLn $ "x: " ++ show x1
           putStrLn $ "y: " ++ show y1
@@ -115,7 +123,4 @@ main = do let p1 = point (0.001, 1.001)
           putStrLn $ "translatedCurve:" ++ show translatedCurve ++ "\ninitial curve: " ++ show c1 ++ "\ninitial point: " ++ show p1 ++"\ntranslate point: " ++ show p5
           putStrLn $ "----------------------\ninitial curve: " ++ show c3 ++ "\nreflection line" ++ show line1 ++ "\nreflectedCurve: " ++ show reflectedCurve ++ "\n---------------------"
           putStrLn $ "----------------------\ninitial curve: " ++ show c4 ++ "\nbbox" ++ show box ++ "\n---------------------"
-
-          
-
-
+          putStrLn $ "width: " ++ show widthVal ++ " height: " ++ show heightVal
