@@ -68,8 +68,8 @@ height :: Curve -> Double
 height (Curve s l) = (pointY p2) - (pointY p1)
  where  (p1,p2) = bbox(Curve s l)
 
- toList :: Curve -> [Point]
- toList (Curve s l) = s:l
+toList :: Curve -> [Point]
+toList (Curve s l) = s:l
  
 -------- Utils ------------------
 
@@ -114,6 +114,7 @@ main = do let p1 = point (0.001, 1.001)
               box = bbox c4
               widthVal = (width c4)
               heightVal = (height c4)
+              listRep = toList c4
           putStrLn $ "Initial point: " ++ show p1
           putStrLn $ "x: " ++ show x1
           putStrLn $ "y: " ++ show y1
@@ -128,3 +129,4 @@ main = do let p1 = point (0.001, 1.001)
           putStrLn $ "----------------------\ninitial curve: " ++ show c3 ++ "\nreflection line" ++ show line1 ++ "\nreflectedCurve: " ++ show reflectedCurve ++ "\n---------------------"
           putStrLn $ "----------------------\ninitial curve: " ++ show c4 ++ "\nbbox" ++ show box ++ "\n---------------------"
           putStrLn $ "width: " ++ show widthVal ++ " height: " ++ show heightVal
+          putStrLn $ "as ilst: " ++ show listRep
