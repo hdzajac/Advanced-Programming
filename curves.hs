@@ -33,7 +33,9 @@ point :: (Double, Double) -> Point
 point (x,y) = Point x y
 
 instance Eq Point where
-  p1 == p2 = abs (pointX p1 - pointX p2) < 0.01 && abs (pointY p1 - pointY p2) < 0.01
+  p1 == p2 = xdiff < 0.01 && ydiff < 0.01
+    where xdiff = abs (pointX p1 - pointX p2)
+          ydiff = abs(pointY p1 - pointY p2)
 
 pointX :: Point -> Double
 pointX (Point x _) = x
@@ -43,7 +45,9 @@ pointY (Point _ y) = y
 
 -- takes radians
 rotatePoint:: Double -> Point -> Point
-rotatePoint angle (Point x y) = point (x * cos angle - y * sin angle, x * sin angle + y * cos angle)
+rotatePoint angle (Point x y) = point (newX, newY)
+  where newX = x * cos angle - y * sin angle
+        newY = x * sin angle + y * cos angle
 
 -- vx & vy are vector coordinates
 translatePoint :: Point -> Point -> Point
@@ -62,30 +66,58 @@ connect :: Curve -> Curve -> Curve
 connect (Curve s1 l1) (Curve s2 l2) = curve s1 (l1++s2:l2)
 
 rotate :: Curve -> Double -> Curve
-rotate (Curve s l) degAngle =  curve (rotatePoint (toRadians degAngle) s ) (map (rotatePoint (toRadians degAngle)) l)
+rotate (Curve s l) degAngle =  curve rotatedS rotatedList
+  where rotatedS = rotatePoint (toRadians degAngle) s
+        rotatedList = map (rotatePoint (toRadians degAngle)) l
 
 
 translate :: Curve -> Point -> Curve
 translate (Curve s l) p
-  | s /= p = curve (translatePoint s vector) (map (translatePoint vector) l)
+  | s /= p = curve (translatePoint v s) (map (translatePoint v) l)
   | otherwise = curve s l
-  where vector = point (pointX p - pointX s, pointY p - pointY s)
+  where v = point (pointX p - pointX s, pointY p - pointY s)
 
 reflect :: Curve -> Line -> Curve
-reflect (Curve s l)(Vertical x) = curve (translatePoint s (multiply 2.0 (getVector s (point (fromIntegral x, pointY s))))) (recursiveReflect l (Vertical x))
-reflect (Curve s l)(Horizontal y) = curve (translatePoint s (multiply 2.0 (getVector s (point (pointX s, fromIntegral y))))) (recursiveReflect l (Horizontal y))
+reflect (Curve s l)(Vertical x) = curve newS (rReflect l (Vertical x))
+  where vPoint = point (fromIntegral x, pointY s)
+        vector = multiply 2.0 (getVector s vPoint)
+        newS = translatePoint vector s
 
-recursiveReflect :: [Point] -> Line -> [Point]
-recursiveReflect [] _ = []
-recursiveReflect [h] (Vertical x) = [translatePoint h (multiply 2.0 (getVector h (point (fromIntegral x, pointY h))))]
-recursiveReflect (h:t) (Vertical x) = translatePoint h (multiply 2.0 (getVector h (point (fromIntegral x, pointY h)))):recursiveReflect t (Vertical x)
-recursiveReflect [h] (Horizontal y) = [translatePoint h (multiply 2.0 (getVector h (point (pointX h, fromIntegral y))))]
-recursiveReflect (h:t) (Horizontal y) =  translatePoint h (multiply 2.0 (getVector h (point (pointX h, fromIntegral y)))):recursiveReflect t (Horizontal y)
+reflect (Curve s l)(Horizontal y) = curve newS (rReflect l (Horizontal y))
+  where hPoint = point (pointX s, fromIntegral y)
+        vector = multiply 2.0 (getVector s hPoint)
+        newS = translatePoint vector s
+
+rReflect :: [Point] -> Line -> [Point]
+rReflect [] _ = []
+rReflect [h] (Vertical x) = [newH]
+  where vPoint = point (fromIntegral x, pointY h)
+        vector = multiply 2.0 (getVector h vPoint)
+        newH = translatePoint vector h
+
+rReflect (h:t) (Vertical x) = newH:rReflect t (Vertical x)
+  where vPoint = point (fromIntegral x, pointY h)
+        vector = multiply 2.0 (getVector h vPoint)
+        newH = translatePoint vector h
+
+rReflect [h] (Horizontal y) = [newH]
+  where hPoint = point (pointX h, fromIntegral y)
+        vector = multiply 2.0 (getVector h hPoint)
+        newH = translatePoint vector h
+
+rReflect (h:t) (Horizontal y) =  newH:rReflect t (Horizontal y)
+  where hPoint = point (pointX h, fromIntegral y)
+        vector = multiply 2.0 (getVector h hPoint)
+        newH = translatePoint vector h
 
 bbox :: Curve -> (Point, Point)
-bbox (Curve s l) = (point (minimum xs, minimum ys), point (maximum xs, maximum ys))
+bbox (Curve s l) = (point (xmin, ymin), point (xmax, ymax))
   where ys = [pointY p | p <- s:l]
         xs = [pointX p | p <- s:l]
+        xmin = foldl min 0 xs
+        ymin = foldl min 0 ys
+        xmax = foldl max 0 xs
+        ymax = foldl max 0 ys
 
 width :: Curve -> Double
 width (Curve s l) = pointX p2 - pointX p1
@@ -101,7 +133,7 @@ toList (Curve s l) = s:l
 normalize :: Curve -> Curve
 normalize (Curve s l) = translate (Curve s l) secretPoint
    where (p1,_) = bbox(Curve s l)
-         secretPoint  = point (- pointX p1 + pointX s, - pointY p1 + pointY s)
+         secretPoint = point (- pointX p1 + pointX s, - pointY p1 + pointY s)
 
 toSVG :: Curve -> String
 toSVG (Curve s []) = "<svg xmlns=\"http://www.w3.org/2000/svg\"\n" ++
@@ -134,7 +166,7 @@ toSVGRecursive (Curve s (h:t)) = "\n<line style=\"stroke-width: 2px; stroke: bla
                                     toSVGRecursive (curve h t)
 
 toFile :: Curve -> FilePath -> IO ()
-toFile c filePath = writeFile filePath (toSVG $ normalize $ c)
+toFile c filePath = writeFile filePath (toSVG $ normalize c)
 
 
 -- ------ Utils ------------------
