@@ -20,7 +20,6 @@
 --   toSVG,
 --   toFile,
 -- ) where
-
 import Text.Printf
 
 data Point = Point Double Double deriving (Show)
@@ -137,33 +136,53 @@ normalize (Curve s l) = translate (Curve s l) secretPoint
 
 toSVG :: Curve -> String
 toSVG (Curve s []) = "<svg xmlns=\"http://www.w3.org/2000/svg\"\n" ++
-                        printf "width=\"2.00fpx\" height=\"2.00px\" version=\"1.1\"><g>" ++
-                          "\n<line style=\"stroke-width: 2px; stroke: black; fill:white\"\n" ++
-                            printf "x1=\"%.2f\" x2=\"%.2f\" y1=\"%.2f\" y2=\"%.2f\" />\n" (pointX s) (pointY s) (pointX s) (pointY s) ++
-                              "</g>\n</svg>"
+    "width=\"2.00px\" height=\"2.00px\" version=\"1.1\">\n<g>\n" ++
+    "<line style=\"stroke-width: 2px; stroke: black; fill:white\"" ++
+    printf "\nx1=\"%.2f\" x2=\"%.2f\" y1=\"%.2f\" y2=\"%.2f\" />\n" x a y b ++
+    "</g>\n</svg>"
+  where x = pointX s
+        a = pointX s
+        y = pointY s
+        b = pointY s
+
 toSVG (Curve s [t]) = "<svg xmlns=\"http://www.w3.org/2000/svg\"\n" ++
-                        printf "width=\"%.2fpx\" height=\"%.2fpx\" version=\"1.1\"><g>" boxHeight boxWidth ++
-                          "\n<line style=\"stroke-width: 2px; stroke: black; fill:white\"\n" ++
-                            printf "x1=\"%.2f\" x2=\"%.2f\" y1=\"%.2f\" y2=\"%.2f\" />\n" (pointX s) (pointY s) (pointX t) (pointY t) ++
-                              "</g>\n</svg>"
-  where boxHeight = height (curve s [t])
-        boxWidth = width (curve s [t])
+    printf "width=\"%.2fpx\" height=\"%.2fpx\" version=\"1.1\">\n<g>" w h ++
+    "\n<line style=\"stroke-width: 2px; stroke: black; fill:white\"\n" ++
+    printf "x1=\"%.2f\" x2=\"%.2f\" y1=\"%.2f\" y2=\"%.2f\" />\n" x a y b ++
+    "</g>\n</svg>"
+  where h = height (curve s [t])
+        w = width (curve s [t])
+        x = pointX s
+        a = pointX t
+        y = pointY s
+        b = pointY t
 
 toSVG (Curve s l) = "<svg xmlns=\"http://www.w3.org/2000/svg\"\n" ++
-                          printf "width=\"%.2fpx\" height=\"%.2fpx\" version=\"1.1\"><g>" boxHeight boxWidth ++
-                            toSVGRecursive (curve s l)
-  where boxHeight = height (curve s l)
-        boxWidth = width (curve s l)
+    printf "width=\"%.2fpx\" height=\"%.2fpx\" version=\"1.1\"><g>" w h ++
+    rToSvg (curve s l)
+  where h = height (curve s l)
+        w = width (curve s l)
 
 
-toSVGRecursive :: Curve -> String
-toSVGRecursive (Curve _ []) = ""
-toSVGRecursive (Curve h [t]) = "\n<line style=\"stroke-width: 2px; stroke: black; fill:white\"\n" ++
-                                  printf "x1=\"%.2f\" x2=\"%.2f\" y1=\"%.2f\" y2=\"%.2f\" />\n" (pointX h) (pointY h) (pointX t) (pointY t) ++
-                                    "</g>\n</svg>"
-toSVGRecursive (Curve s (h:t)) = "\n<line style=\"stroke-width: 2px; stroke: black; fill:white\"\n" ++
-                                  printf "x1=\"%.2f\" x2=\"%.2f\" y1=\"%.2f\" y2=\"%.2f\" />" (pointX s) (pointY s) (pointX h) (pointY h) ++
-                                    toSVGRecursive (curve h t)
+rToSvg :: Curve -> String
+rToSvg (Curve _ []) = ""
+rToSvg (Curve h [t]) = "\n<line style=\"stroke-width: 2px;" ++
+    "stroke: black; fill:white\"\n" ++
+    printf "x1=\"%.2f\" x2=\"%.2f\" y1=\"%.2f\" y2=\"%.2f\" />\n" x a y b ++
+    "</g>\n</svg>"
+  where x = pointX h
+        a = pointX t
+        y = pointY h
+        b = pointY t
+
+rToSvg (Curve s (h:t)) = "\n<line style=\"stroke-width: 2px;" ++
+    "stroke: black; fill:white\"\n" ++
+    printf "x1=\"%.2f\" x2=\"%.2f\" y1=\"%.2f\" y2=\"%.2f\" />" x a y b ++
+    rToSvg (curve h t)
+  where x = pointX s
+        a = pointX h
+        y = pointY s
+        b = pointY h
 
 toFile :: Curve -> FilePath -> IO ()
 toFile c filePath = writeFile filePath (toSVG $ normalize c)
