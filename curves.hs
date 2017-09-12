@@ -114,10 +114,10 @@ bbox :: Curve -> (Point, Point)
 bbox (Curve s l) = (point (xmin, ymin), point (xmax, ymax))
   where ys = [pointY p | p <- s:l]
         xs = [pointX p | p <- s:l]
-        xmin = foldl min 0 xs
-        ymin = foldl min 0 ys
-        xmax = foldl max 0 xs
-        ymax = foldl max 0 ys
+        xmin = foldl min (head xs) xs
+        ymin = foldl min (head xs) ys
+        xmax = foldl max (head xs) xs
+        ymax = foldl max (head xs) ys
 
 width :: Curve -> Double
 width (Curve s l) = pointX p2 - pointX p1
