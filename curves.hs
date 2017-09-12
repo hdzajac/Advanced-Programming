@@ -112,12 +112,12 @@ rReflect (h:t) (Horizontal y) =  newH:rReflect t (Horizontal y)
 
 bbox :: Curve -> (Point, Point)
 bbox (Curve s l) = (point (xmin, ymin), point (xmax, ymax))
-  where ys = [pointY p | p <- s:l]
-        xs = [pointX p | p <- s:l]
-        xmin = foldl min (head xs) xs
-        ymin = foldl min (head xs) ys
-        xmax = foldl max (head xs) xs
-        ymax = foldl max (head xs) ys
+  where (hy:ty) = [pointY p | p <- s:l]
+        (hx:tx) = [pointX p | p <- s:l]
+        xmin = foldl min hx (hx:tx)
+        ymin = foldl min hy (hy:ty)
+        xmax = foldl max hx (hx:tx)
+        ymax = foldl max hy (hy:ty)
 
 width :: Curve -> Double
 width (Curve s l) = pointX p2 - pointX p1
