@@ -20,11 +20,12 @@
 --   toSVG,
 --   toFile,
 -- ) where
+
 import Text.Printf
 
 data Point = Point Double Double deriving (Show)
 data Curve = Curve Point [Point] deriving (Show)
-data Line = Vertical Integer | Horizontal Integer deriving (Show)
+data Line = Vertical Double | Horizontal Double deriving (Show)
 
 -- ------- Point ------------
 
@@ -78,34 +79,34 @@ translate (Curve s l) p
 
 reflect :: Curve -> Line -> Curve
 reflect (Curve s l)(Vertical x) = curve newS (rReflect l (Vertical x))
-  where vPoint = point (fromIntegral x, pointY s)
+  where vPoint = point (x, pointY s)
         vector = multiply 2.0 (getVector s vPoint)
         newS = translatePoint vector s
 
 reflect (Curve s l)(Horizontal y) = curve newS (rReflect l (Horizontal y))
-  where hPoint = point (pointX s, fromIntegral y)
+  where hPoint = point (pointX s, y)
         vector = multiply 2.0 (getVector s hPoint)
         newS = translatePoint vector s
 
 rReflect :: [Point] -> Line -> [Point]
 rReflect [] _ = []
 rReflect [h] (Vertical x) = [newH]
-  where vPoint = point (fromIntegral x, pointY h)
+  where vPoint = point (x, pointY h)
         vector = multiply 2.0 (getVector h vPoint)
         newH = translatePoint vector h
 
 rReflect (h:t) (Vertical x) = newH:rReflect t (Vertical x)
-  where vPoint = point (fromIntegral x, pointY h)
+  where vPoint = point (x, pointY h)
         vector = multiply 2.0 (getVector h vPoint)
         newH = translatePoint vector h
 
 rReflect [h] (Horizontal y) = [newH]
-  where hPoint = point (pointX h, fromIntegral y)
+  where hPoint = point (pointX h, y)
         vector = multiply 2.0 (getVector h hPoint)
         newH = translatePoint vector h
 
 rReflect (h:t) (Horizontal y) =  newH:rReflect t (Horizontal y)
-  where hPoint = point (pointX h, fromIntegral y)
+  where hPoint = point (pointX h, y)
         vector = multiply 2.0 (getVector h hPoint)
         newH = translatePoint vector h
 
