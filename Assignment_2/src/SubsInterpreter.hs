@@ -35,10 +35,10 @@ initialContext = (Map.empty, initialPEnv)
   where initialPEnv =
           Map.fromList [ ("===", undefined)
                        , ("<", undefined)
-                       , ("+", undefined)
-                       , ("*", undefined)
-                       , ("-", undefined)
-                       , ("%", undefined)
+                       , ("+", add)
+                       , ("*", multiply)
+                       , ("-", minus)
+                       , ("%", modulo)
                        , ("Array", mkArray)
                        ]
 
@@ -71,8 +71,31 @@ instance Monad SubsM where
   fail s = SubsM (\e-> Left s)
   
 mkArray :: Primitive
-mkArray [IntVal n] | n >= 0 = return $ ArrayVal (replicate n UndefinedVal)
+mkArray [IntVal n] 
+  | n >= 0 = return $ ArrayVal (replicate n UndefinedVal)
 mkArray _ = Left "Array() called with wrong number or type of arguments"
+
+add :: Primitive
+add [IntVal a, IntVal b] = return $ IntVal (a + b)
+add [StringVal a, StringVal b] = return $ StringVal (a ++ b)
+add [IntVal a, StringVal b] = return $ StringVal ((show a) ++ b)
+add [StringVal a, IntVal b] = return $ StringVal (a ++ (Show b))
+add _ = Left "\"+\" applied to incompatible types, try any combination of String and Int"
+
+minus :: Primitive
+minus [IntVal a, IntVal b] = return $ IntVal (a - b)
+add _ = Left "\"-\" applied to incompatible types, try: Int - Int"
+
+
+multiply :: Primitive
+multiply [IntVal a, IntVal a] = return $ IntVal (a * b)
+multiply _ = Left "\"*\" applied to incompatible types, try: Int * Int"
+
+modulo :: Primitive
+modulo [IntVal a, IntVal 0] = Left "\"% 0\" is undefined, try different value"
+modulo [IntVal a, IntVal b] = return $ IntVal (a % b)
+modulo _ = Left "\"*\" applied to incompatible types, try: Int % Int""
+
 
 
 --let (Writer (y, v')) = f x in
