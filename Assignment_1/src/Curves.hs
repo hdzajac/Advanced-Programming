@@ -1,25 +1,25 @@
--- module Curves
--- ( Point,
---   Curve,
---   Line(..),
---   point,
---   pointX,
---   pointY,
---   rotatePoint,
---   translatePoint,
---   curve,
---   connect,
---   rotate,
---   normalize,
---   translate,
---   reflect,
---   bbox,
---   width,
---   height,
---   toList,
---   toSVG,
---   toFile,
--- ) where
+module Curves
+( Point,
+  Curve,
+  Line(..),
+  point,
+  pointX,
+  pointY,
+  rotatePoint,
+  translatePoint,
+  curve,
+  connect,
+  rotate,
+  normalize,
+  translate,
+  reflect,
+  bbox,
+  width,
+  height,
+  toList,
+  toSVG,
+  toFile,
+) where
 
 import Text.Printf
 
@@ -199,80 +199,3 @@ getVector (Point x1 y1) (Point x2 y2) = point (x2-x1,y2-y1)
 
 multiply:: Double -> Point -> Point
 multiply p (Point x y)  = point (x*p,y*p)
-
-hilbert :: Curve -> Curve
-hilbert c = c0 `connect` c1 `connect` c2 `connect` c3
-   where  w = width c
-          h = height c
-          p = 6
-
-          ch = reflect c $ Vertical 0
-
-          c0 = ch `rotate` (-90) `translate` point (w+p+w, h+p+h)
-          c1 = c `translate` point (w+p+w, h)
-          c2 = c
-          c3 = ch `rotate` 90 `translate` point (0, h+p)
-
-main :: IO ()
-
-main = do let p1 = point (1.0e-3, 1.001)
-              p0 = point (1.0, 1.0)
-              p2 = point (0.5, 1.5)
-              p3 = point (2.0, 2.0)
-              p4 = point (1.0, 0.0)
-              p5 = point (1.0, 2.0)
-              p6 = point (-90.0, -91.0)
-              p7 = point (-2.0, 90.0)
-              x1 = pointX p1
-              y1 = pointY p1
-              c0 = curve p0 []
-              c1 = curve p1 [p2, p3]
-              c2 = curve p1 [p4, p3]
-              c3 = curve p1 [p5]
-              c4 = curve p1 [p6, p7]
-              result = p1 == p2
-              connected = connect c0 c1
-              deg1 = toRadians 30.0
-              rotatedPoint = rotatePoint (pi / 2) p4
-              rotatedCurve = rotate c2 90
-              translatedCurve = translate c1 p5
-              line1 = Horizontal 2
-              reflectedCurve = reflect c3 line1
-              box = bbox c4
-              widthVal = width c4
-              heightVal = (height c4)
-              listRep = toList c4
-              normalizedCurve = normalize c4
-              svg = toSVG $ normalize c4
-              c5 = hilbert $ hilbert $ hilbert $ hilbert $ curve (point (0,0)) []
-          toFile c5 "file.svg"    
-          putStrLn $ "Initial point: " ++ show p1
-          putStrLn $ "x: " ++ show x1
-          putStrLn $ "y: " ++ show y1
-          putStrLn $ "EQ: " ++ show result
-          putStrLn $ "Curve: " ++ show c1 ++ "  |  c0: " ++ show c0
-          putStrLn $ "connected: " ++ show connected
-          putStrLn $ "rad: " ++ show deg1
-          putStrLn $ "rotatedPoint: " ++ show rotatedPoint
-          putStrLn $ "rotatedCurve: " ++ show rotatedCurve
-          putStrLn $
-            "translatedCurve:" ++
-              show translatedCurve ++
-                "\ninitial curve: " ++
-                  show c1 ++
-                    "\ninitial point: " ++ show p1 ++ "\ntranslate point: " ++ show p5
-          putStrLn $
-            "----------------------\ninitial curve: " ++
-              show c3 ++
-                "\nreflection line" ++
-                  show line1 ++
-                    "\nreflectedCurve: " ++
-                      show reflectedCurve ++ "\n---------------------"
-          putStrLn $
-            "----------------------\ninitial curve: " ++
-              show c4 ++ "\nbbox" ++ show box ++ "\n---------------------"
-          putStrLn $
-            "width: " ++ show widthVal ++ " height: " ++ show heightVal
-          putStrLn $ "as ilst: " ++ show listRep
-          putStrLn $ "normalizedCurve: " ++ show normalizedCurve
-          putStrLn $ "svg: " ++ show svg
