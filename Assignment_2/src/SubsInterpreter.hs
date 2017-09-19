@@ -44,6 +44,7 @@ initialContext = (Map.empty, initialPEnv)
 
 newtype SubsM a = SubsM {runSubsM :: Context -> Either Error (a, Env)}
 
+--newtype SubsM a = SubsM {runSubsM :: Context -> Either Error (a, Env)}
 instance Functor SubsM where
   --(a->b) -> M a -> M b
   --(a->b) -> ((Env, PEnv) -> Either Error (a,Env)) -> ((Env, PEnv) -> Either Error (b,Env))
@@ -130,8 +131,6 @@ less [StringVal s1,StringVal s2] = if(s1<s2) then Right(TrueVal)
                            else Right(FalseVal)
 less l = Left "Invalid comparison"
 
-
-
 --let (Writer (y, v')) = f x in
 --Writer (y, v `mappend` v')
 -- is this applied on   
@@ -187,7 +186,6 @@ evalExpr (Assign id expr) = do let a = evalExpr expr
                                fmap (putVar id) a
                                a
 
-
 -- -- f [Value] -> Either Error Value' with `Value
 -- evalExpr (Call functionName l) = do f <- getFunction functionName
 --                                     guard (length l == 0) >> return Undefined
@@ -201,6 +199,17 @@ evalExpr (Assign id expr) = do let a = evalExpr expr
 --                                     -- return result
 
 
-
+evalExpr (Call fname l) = do funct <- getFunction fname
+                             v <- (mapM evalExpr l)
+                             case (funct v) of 
+                                 Left err -> fail err
+                                 Right (val) -> return val
+				
 runExpr :: Expr -> Either Error Value
-runExpr expr = undefined
+runExpr expr = do (val,env) <-runSubsM (evalExpr expr) initialContext
+                  return val  
+				  
+				  
+				  
+--main = equality [(IntVal 2),(IntVal 1)]
+main = runExpr (Call "===" [(Number 1), (Number 1)])
