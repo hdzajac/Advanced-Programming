@@ -25,10 +25,10 @@ data Value = IntVal Int
 
 
 type Error = String
-type Env = Map Ident Value
-type Primitive = [Value] -> Either Error Value
-type PEnv = Map FunName Primitive
-type Context = (Env, PEnv)
+type Env = Map Ident Value --variable aka symb table
+type Primitive = [Value] -> Either Error Value  --preexisting func
+type PEnv = Map FunName Primitive  --primitive env 
+type Context = (Env, PEnv) 
 
 initialContext :: Context
 initialContext = (Map.empty, initialPEnv)
@@ -45,36 +45,88 @@ initialContext = (Map.empty, initialPEnv)
 newtype SubsM a = SubsM {runSubsM :: Context -> Either Error (a, Env)}
 
 instance Functor SubsM where
-  fmap = undefined
+  --(a->b) -> M a -> M b
+  --(a->b) -> ((Env, PEnv) -> Either Error (a,Env)) -> ((Env, PEnv) -> Either Error (b,Env))
+  ---fmap f mf =  SubsM (\(e,pe0)-> (case (runSubsM mf (e,pe0))  of
+  ---                                  Left errMsg -> Left errMsg
+  ---                                  Right (a,e) -> Right ((f a),e))) 
+
+  fmap = liftM
+  
 
 instance Applicative SubsM where
-  pure = undefined
-  (<*>) = undefined
+  pure = return
+  (<*>) = ap
 
 instance Monad SubsM where
-  return x = undefined 
-  f >>= m = undefined
-  fail s = undefined
-
-
+  -- return a :: a->SubsM ((Env, PEnv) -> Either Error (a,Env) )
+  -- define cases for either
+  return x = SubsM (\(e,pe) -> Right (x,e))
+  -- f >>= m ::  SubsM(Env, PEnv) -> Either Error (a,Env) 
+  --              -> (a -> SubsM ((Env, PEnv) -> Either Error (b,Env) ))
+  --              -> SubsM (Env, PEnv) -> Either Error (b,Env)
+  f >>= m = SubsM (\(e0,ep0) -> case (runSubsM f (e0,ep0)) of
+                                        Left errMsg -> Left errMsg
+                                        Right (a,e) -> runSubsM (m a) (e,ep0) )
+  fail s = SubsM (\e-> Left s)
+  
 mkArray :: Primitive
 mkArray [IntVal n] | n >= 0 = return $ ArrayVal (replicate n UndefinedVal)
 mkArray _ = Left "Array() called with wrong number or type of arguments"
 
+
+--let (Writer (y, v')) = f x in
+--Writer (y, v `mappend` v')
+-- is this applied on   
+--should replace the variable environment with the result of applying f to it.
 modifyEnv :: (Env -> Env) -> SubsM ()
-modifyEnv f = undefined
+modifyEnv f = SubsM (\(e0,pe0) ->  Right((),(f e0)))  
 
+--should set the value of the variable i to v in the current environment
 putVar :: Ident -> Value -> SubsM ()
-putVar name val = undefined
+putVar name val = SubsM (\(e0,pe0) ->  Right((),(Map.insert name val e0)))
 
+--helper function
+--should read the value of the variable i in the current environment
 getVar :: Ident -> SubsM Value
-getVar name = undefined
-
+getVar name =  SubsM (\(e0,pe0) ->  case (lookup name  $ Map.assocs  e0)  of
+                                           Nothing -> Left ("unbound variable:"++name)
+                                           Just v -> Right (v,e0))
+										   
+ 
+--Primitive::[Value] -> Either Error Value
+--SubsM {runSubsM :: Context -> Either Error (a, Env)}
+--SubsM {runSubsM :: Context -> Either Error (Primitive, Env)}
+--SubsM {runSubsM :: Context -> Either Error (Primitive, Env)}
+--helper function
+--should look up the function implementing primitive i.
 getFunction :: FunName -> SubsM Primitive
-getFunction name = undefined
-
+getFunction name = SubsM (\(e0,pe0) ->  case (lookup name  $ Map.assocs  pe0)  of
+                                           Nothing -> Left ("unbound function:"++name)
+                                           Just v -> Right (v,e0))
+--data Expr = Number Int
+--          | String String
+--          | ---Array [Expr]
+--          | Undefined
+--          | TrueConst
+--          | FalseConst
+--          | Var Ident
+--          | --Compr ArrayCompr
+--          | Call FunName [Expr]
+--          | Assign Ident Expr
+--          | Comma Expr Expr
+--          deriving (Eq, Read, Show)		
 evalExpr :: Expr -> SubsM Value
-evalExpr expr = undefined
+evalExpr (Number n) = return (IntVal n)
+evalExpr (String n) = return (StringVal n)
+evalExpr (String n) = return (StringVal n)
+evalExpr Undefined = return (UndefinedVal)
+evalExpr TrueConst = return TrueVal
+evalExpr FalseConst = return FalseVal
+evalExpr (Var name) = do x <- getVar name 
+                         return x
+evalExpr (Call fname [l]) = do x <- getVar name 
+
 
 runExpr :: Expr -> Either Error Value
 runExpr expr = undefined
