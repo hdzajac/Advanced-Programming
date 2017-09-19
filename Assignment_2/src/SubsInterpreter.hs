@@ -33,8 +33,8 @@ type Context = (Env, PEnv)
 initialContext :: Context
 initialContext = (Map.empty, initialPEnv)
   where initialPEnv =
-          Map.fromList [ ("===", undefined)
-                       , ("<", undefined)
+          Map.fromList [ ("===", equality)
+                       , ("<", less)
                        , ("+", undefined)
                        , ("*", undefined)
                        , ("-", undefined)
@@ -44,13 +44,40 @@ initialContext = (Map.empty, initialPEnv)
 
 newtype SubsM a = SubsM {runSubsM :: Context -> Either Error (a, Env)}
 
+-------------------------------------------------------------------------------
+--The === operator compares its arguments for structural equality, without any coercions. ??????? what does this mean
+--It accepts operands of any type, but comparison of, e.g., a string and a number
+--will always yield false.
+equality::[Value] -> Either Error Value
+equality [IntVal a ,IntVal b] = if(a==b) then Right(TrueVal)
+										 else Right(FalseVal)
+equality [UndefinedVal,UndefinedVal] = Right(TrueVal)
+equality [TrueVal,TrueVal] = Right(TrueVal)
+equality [FalseVal,FalseVal] = Right(TrueVal)
+equality [TrueVal,FalseVal] = Right(FalseVal)
+equality [FalseVal,TrueVal] = Right(FalseVal)
+equality [StringVal s1,StringVal s2] = if(s1==s2) then Right(TrueVal)
+										          else Right(FalseVal)
+equality [_] = Left "Too few arguments"
+equality [_,_] = Left "Types do not match"
+equality e = Left "Too many arguments"
+----------------------------------------------------------------------------
+--On the other hand, the two arguments to the < operator
+--must either both be integers or both be strings, where strings are compared using
+--the usual lexicographic order.
+less::[Value] -> Either Error Value
+less [IntVal a ,IntVal b] = if(a<b) then Right(TrueVal)
+									else Right(FalseVal)
+less [StringVal s1,StringVal s2] = if(s1<s2) then Right(TrueVal)
+									         else Right(FalseVal)
+less l = Left "Invalid comparison"
+
 instance Functor SubsM where
   --(a->b) -> M a -> M b
   --(a->b) -> ((Env, PEnv) -> Either Error (a,Env)) -> ((Env, PEnv) -> Either Error (b,Env))
   ---fmap f mf =  SubsM (\(e,pe0)-> (case (runSubsM mf (e,pe0))  of
   ---                                  Left errMsg -> Left errMsg
   ---                                  Right (a,e) -> Right ((f a),e))) 
-
   fmap = liftM
   
 
@@ -100,10 +127,11 @@ getVar name =  SubsM (\(e0,pe0) ->  case (lookup name  $ Map.assocs  e0)  of
 --SubsM {runSubsM :: Context -> Either Error (Primitive, Env)}
 --helper function
 --should look up the function implementing primitive i.
+
 getFunction :: FunName -> SubsM Primitive
 getFunction name = SubsM (\(e0,pe0) ->  case (lookup name  $ Map.assocs  pe0)  of
                                            Nothing -> Left ("unbound function:"++name)
-                                           Just v -> Right (v,e0))
+                                           Just f -> Right (f,e0))
 --data Expr = Number Int
 --          | String String
 --          | ---Array [Expr]
@@ -125,7 +153,7 @@ evalExpr TrueConst = return TrueVal
 evalExpr FalseConst = return FalseVal
 evalExpr (Var name) = do x <- getVar name 
                          return x
-evalExpr (Call fname [l]) = do x <- getVar name 
+--evalExpr (Call fname [l]) = do x <- getVar name 
 
 
 runExpr :: Expr -> Either Error Value
