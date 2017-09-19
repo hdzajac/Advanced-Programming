@@ -72,6 +72,8 @@ less [StringVal s1,StringVal s2] = if(s1<s2) then Right(TrueVal)
 									         else Right(FalseVal)
 less l = Left "Invalid comparison"
 
+
+--newtype SubsM a = SubsM {runSubsM :: Context -> Either Error (a, Env)}
 instance Functor SubsM where
   --(a->b) -> M a -> M b
   --(a->b) -> ((Env, PEnv) -> Either Error (a,Env)) -> ((Env, PEnv) -> Either Error (b,Env))
@@ -106,22 +108,22 @@ add :: Primitive
 add [IntVal a, IntVal b] = return $ IntVal (a + b)
 add [StringVal a, StringVal b] = return $ StringVal (a ++ b)
 add [IntVal a, StringVal b] = return $ StringVal ((show a) ++ b)
-add [StringVal a, IntVal b] = return $ StringVal (a ++ (Show b))
+add [StringVal a, IntVal b] = return $ StringVal (a ++ (show b))
 add _ = Left "\"+\" applied to incompatible types, try any combination of String and Int"
 
 minus :: Primitive
 minus [IntVal a, IntVal b] = return $ IntVal (a - b)
-add _ = Left "\"-\" applied to incompatible types, try: Int - Int"
+minus _ = Left "\"-\" applied to incompatible types, try: Int - Int"
 
 
 multiply :: Primitive
-multiply [IntVal a, IntVal a] = return $ IntVal (a * b)
+multiply [IntVal a, IntVal b] = return $ IntVal (a * b)
 multiply _ = Left "\"*\" applied to incompatible types, try: Int * Int"
 
 modulo :: Primitive
 modulo [IntVal a, IntVal 0] = Left "\"% 0\" is undefined, try different value"
-modulo [IntVal a, IntVal b] = return $ IntVal (a % b)
-modulo _ = Left "\"*\" applied to incompatible types, try: Int % Int""
+modulo [IntVal a, IntVal b] = return $ IntVal (a `mod` b)
+modulo _ = Left "\"*\" applied to incompatible types, try: Int % Int"
 
 
 
@@ -176,8 +178,18 @@ evalExpr TrueConst = return TrueVal
 evalExpr FalseConst = return FalseVal
 evalExpr (Var name) = do x <- getVar name 
                          return x
---evalExpr (Call fname [l]) = do x <- getVar name 
-
-
+--funct :: [Value] -> Either Error Value  --preexisting func
+evalExpr (Call fname l) = do funct <- getFunction fname
+                             v <- (mapM evalExpr l)
+                             case (funct v) of 
+                                 Left err -> fail err
+                                 Right (val) -> return val
+				
 runExpr :: Expr -> Either Error Value
-runExpr expr = undefined
+runExpr expr = do (val,env) <-runSubsM (evalExpr expr) initialContext
+                  return val  
+				  
+				  
+				  
+--main = equality [(IntVal 2),(IntVal 1)]
+--main = runExpr (Call "===" [(Number 1), (Number 2)])
