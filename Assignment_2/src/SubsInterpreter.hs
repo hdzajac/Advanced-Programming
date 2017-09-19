@@ -44,34 +44,6 @@ initialContext = (Map.empty, initialPEnv)
 
 newtype SubsM a = SubsM {runSubsM :: Context -> Either Error (a, Env)}
 
--------------------------------------------------------------------------------
---The === operator compares its arguments for structural equality, without any coercions. ??????? what does this mean
---It accepts operands of any type, but comparison of, e.g., a string and a number
---will always yield false.
-equality::[Value] -> Either Error Value
-equality [IntVal a ,IntVal b] = if(a==b) then Right(TrueVal)
-										 else Right(FalseVal)
-equality [UndefinedVal,UndefinedVal] = Right(TrueVal)
-equality [TrueVal,TrueVal] = Right(TrueVal)
-equality [FalseVal,FalseVal] = Right(TrueVal)
-equality [TrueVal,FalseVal] = Right(FalseVal)
-equality [FalseVal,TrueVal] = Right(FalseVal)
-equality [StringVal s1,StringVal s2] = if(s1==s2) then Right(TrueVal)
-										          else Right(FalseVal)
-equality [_] = Left "Too few arguments"
-equality [_,_] = Left "Types do not match"
-equality e = Left "Too many arguments"
-----------------------------------------------------------------------------
---On the other hand, the two arguments to the < operator
---must either both be integers or both be strings, where strings are compared using
---the usual lexicographic order.
-less::[Value] -> Either Error Value
-less [IntVal a ,IntVal b] = if(a<b) then Right(TrueVal)
-									else Right(FalseVal)
-less [StringVal s1,StringVal s2] = if(s1<s2) then Right(TrueVal)
-									         else Right(FalseVal)
-less l = Left "Invalid comparison"
-
 instance Functor SubsM where
   --(a->b) -> M a -> M b
   --(a->b) -> ((Env, PEnv) -> Either Error (a,Env)) -> ((Env, PEnv) -> Either Error (b,Env))
@@ -106,22 +78,57 @@ add :: Primitive
 add [IntVal a, IntVal b] = return $ IntVal (a + b)
 add [StringVal a, StringVal b] = return $ StringVal (a ++ b)
 add [IntVal a, StringVal b] = return $ StringVal ((show a) ++ b)
-add [StringVal a, IntVal b] = return $ StringVal (a ++ (Show b))
+add [StringVal a, IntVal b] = return $ StringVal (a ++ (show b))
 add _ = Left "\"+\" applied to incompatible types, try any combination of String and Int"
 
 minus :: Primitive
 minus [IntVal a, IntVal b] = return $ IntVal (a - b)
-add _ = Left "\"-\" applied to incompatible types, try: Int - Int"
-
+minus _ = Left "\"-\" applied to incompatible types, try: Int - Int"
 
 multiply :: Primitive
-multiply [IntVal a, IntVal a] = return $ IntVal (a * b)
+multiply [IntVal a, IntVal b] = return $ IntVal (a * b)
 multiply _ = Left "\"*\" applied to incompatible types, try: Int * Int"
 
 modulo :: Primitive
 modulo [IntVal a, IntVal 0] = Left "\"% 0\" is undefined, try different value"
-modulo [IntVal a, IntVal b] = return $ IntVal (a % b)
-modulo _ = Left "\"*\" applied to incompatible types, try: Int % Int""
+modulo [IntVal a, IntVal b] = return $ IntVal (a `mod` b)
+modulo _ = Left "\"*\" applied to incompatible types, try: Int % Int"
+
+-------------------------------------------------------------------------------
+--The === operator compares its arguments for structural equality, without any coercions. ??????? what does this mean
+--It accepts operands of any type, but comparison of, e.g., a string and a number
+--will always yield false.
+equality::[Value] -> Either Error Value
+equality [IntVal a ,IntVal b] = if(a==b) then Right(TrueVal)
+                     else Right(FalseVal)
+equality [UndefinedVal,UndefinedVal] = Right(TrueVal)
+equality [TrueVal,TrueVal] = Right(TrueVal)
+equality [FalseVal,FalseVal] = Right(TrueVal)
+equality [TrueVal,FalseVal] = Right(FalseVal)
+equality [FalseVal,TrueVal] = Right(FalseVal)
+equality [(ArrayVal []), (ArrayVal [])] = Right(TrueVal)
+equality [(ArrayVal _), (ArrayVal [])] = Left "Mismatched Sizes"
+equality [(ArrayVal []), (ArrayVal _)] = Left "Mismatched Sizes"
+equality [(ArrayVal (h1:t1)), (ArrayVal (h2:t2))] = case equality [h1,h2] of 
+                                                      Right(TrueVal) -> equality [ArrayVal (t1), ArrayVal (t2)]
+                                                      otherwise -> Left "Not Equal"
+
+equality [StringVal s1,StringVal s2] = if(s1==s2) then Right(TrueVal)
+                              else Right(FalseVal)
+equality [_] = Left "Too few arguments"
+equality [_,_] = Left "Types do not match"
+equality e = Left "Too many arguments"
+
+----------------------------------------------------------------------------
+--On the other hand, the two arguments to the < operator
+--must either both be integers or both be strings, where strings are compared using
+--the usual lexicographic order.
+less::[Value] -> Either Error Value
+less [IntVal a ,IntVal b] = if(a<b) then Right(TrueVal)
+                  else Right(FalseVal)
+less [StringVal s1,StringVal s2] = if(s1<s2) then Right(TrueVal)
+                           else Right(FalseVal)
+less l = Left "Invalid comparison"
 
 
 
@@ -143,7 +150,7 @@ getVar name =  SubsM (\(e0,pe0) ->  case (lookup name  $ Map.assocs  e0)  of
                                            Nothing -> Left ("unbound variable:"++name)
                                            Just v -> Right (v,e0))
 										   
- 
+
 --Primitive::[Value] -> Either Error Value
 --SubsM {runSubsM :: Context -> Either Error (a, Env)}
 --SubsM {runSubsM :: Context -> Either Error (Primitive, Env)}
@@ -157,7 +164,7 @@ getFunction name = SubsM (\(e0,pe0) ->  case (lookup name  $ Map.assocs  pe0)  o
                                            Just f -> Right (f,e0))
 --data Expr = Number Int
 --          | String String
---          | ---Array [Expr]
+--          | Array [Expr]
 --          | Undefined
 --          | TrueConst
 --          | FalseConst
@@ -170,13 +177,29 @@ getFunction name = SubsM (\(e0,pe0) ->  case (lookup name  $ Map.assocs  pe0)  o
 evalExpr :: Expr -> SubsM Value
 evalExpr (Number n) = return (IntVal n)
 evalExpr (String n) = return (StringVal n)
-evalExpr (String n) = return (StringVal n)
-evalExpr Undefined = return (UndefinedVal)
+evalExpr Undefined = return UndefinedVal
 evalExpr TrueConst = return TrueVal
 evalExpr FalseConst = return FalseVal
 evalExpr (Var name) = do x <- getVar name 
                          return x
---evalExpr (Call fname [l]) = do x <- getVar name 
+evalExpr (Comma a b) = (evalExpr a) >> (evalExpr b)
+evalExpr (Assign id expr) = do let a = evalExpr expr
+                               fmap (putVar id) a
+                               a
+
+
+-- -- f [Value] -> Either Error Value' with `Value
+-- evalExpr (Call functionName l) = do f <- getFunction functionName
+--                                     guard (length l == 0) >> return Undefined
+--                                     expr <- l
+--                                     vals <- fmap evalExpr expr
+--                                     (resutl, _) <- fmap f vals
+--                                     return result
+--                                     -- correctExpr <- guard (Undefined) >> fail
+--                                     -- valList21 <- [ v | Right (v,_) <- [(evalExpr expr) | expr <- l]]
+--                                     -- (result, _) <- (fmap f valList)
+--                                     -- return result
+
 
 
 runExpr :: Expr -> Either Error Value
