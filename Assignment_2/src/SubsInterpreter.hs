@@ -169,7 +169,7 @@ getFunction name = SubsM (\(e0,pe0) ->  case lookup name $ Map.assocs pe0 of
 --          | TrueConst
 --          | FalseConst
 --          | Var Ident
---          | --Compr ArrayCompr
+--          | Compr ArrayCompr
 --          | Call FunName [Expr]
 --          | Assign Ident Expr
 --          | Comma Expr Expr
@@ -199,6 +199,37 @@ evalExpr (Call fname l) = do
     Left err -> fail err
     Right val -> return val
 
+evalExpr (Compr (ACBody expr)) = evalExpr expr
+
+evalExpr (Compr (ACFor ident expr arrayCompr)) = do
+  evaluated <- evalExpr expr
+  case evaluated of
+    (StringVal a) -> do 
+      result <- evalForStringCompr ident (StringVal a) arrayCompr
+      return (ArrayVal result)
+    (ArrayVal a)-> do
+      result <- evalForIntCompr ident (ArrayVal a) arrayCompr
+      return (ArrayVal result)
+    _ -> return (ArrayVal [])
+
+
+evalForStringCompr :: Ident -> Value -> ArrayCompr -> SubsM [Value]
+evalForStringCompr ident (StringVal []) arrayCompr = return ([StringVal []])
+evalForStringCompr ident (StringVal (h:t)) arrayCompr = do
+  putVar ident (StringVal [h])
+  val <- evalExpr (Compr arrayCompr)
+  rest <- evalForStringCompr ident (StringVal t) arrayCompr
+  return (val:rest)
+
+evalForIntCompr :: Ident -> Value -> ArrayCompr -> SubsM [Value]
+evalForIntCompr ident (ArrayVal []) arrayCompr = return ([ArrayVal []])
+evalForIntCompr ident (ArrayVal ((IntVal h):t)) arrayCompr = do
+  putVar ident (IntVal h)
+  val <- evalExpr (Compr arrayCompr)
+  rest <- evalForIntCompr ident (ArrayVal t) arrayCompr
+  return (val:rest)
+
+
 -- -- f [Value] -> Either Error Value' with `Value
 -- evalExpr (Call functionName l) = do f <- getFunction functionName
 --                                     guard (length l == 0) >> return Undefined
@@ -210,12 +241,6 @@ evalExpr (Call fname l) = do
 --                                     -- valList21 <- [ v | Right (v,_) <- [(evalExpr expr) | expr <- l]]
 --                                     -- (result, _) <- (fmap f valList)
 --                                     -- return result
-
-evalExpr (Array l) = do
-  val <- mapM evalExpr l
-  return (ArrayVal val)
-
-evalExpr (Compr _) = return (IntVal 1)
 
 runExpr :: Expr -> Either Error Value
 runExpr expr = do
