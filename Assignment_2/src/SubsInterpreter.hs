@@ -133,6 +133,9 @@ less _ = Left "Invalid comparison"
 
 
 -- Not used to avoid error commented
+-- getEnv :: SubsM Env
+-- getEnv  =  SubsM (\(e0, _) -> return (e0,e0) )
+
 
 -- -- should replace the variable environment with the result of applying f to it.
 -- modifyEnv :: (Env -> Env) -> SubsM ()
@@ -150,9 +153,6 @@ getVar :: Ident -> SubsM Value
 getVar name =  SubsM (\(e0,_) -> case lookup name (Map.assocs e0) of
                                     Nothing -> Left ("unbound variable: "++name)
                                     Just v -> Right (v,e0))
-
-getEnv :: SubsM Env
-getEnv  =  SubsM (\(e0, _) -> return (e0,e0) )
 
 -- Primitive::[Value] -> Either Error Value
 -- SubsM {runSubsM :: Context -> Either Error (a, Env)}
@@ -209,35 +209,43 @@ evalExpr (Compr (ACIf e acompr)) = do
   val <- evalExpr e
   case val of
     TrueVal -> evalExpr (Compr acompr)
-    FalseVal -> return (ArrayVal []) -- ?
+    FalseVal -> return (ArrayVal [])
+    _ -> return (UndefinedVal)
 
 evalExpr (Compr (ACFor ident expr arrayCompr)) = do
   evaluated <- evalExpr expr
   case evaluated of
     (StringVal a) -> do 
       result <- evalForStringCompr ident (StringVal a) arrayCompr
-      return (ArrayVal result)
+      return (ArrayVal (flatten result))
     (ArrayVal a)-> do
       result <- evalForIntCompr ident (ArrayVal a) arrayCompr
-      return (ArrayVal result)
+      return (ArrayVal (flatten result))
     _ -> return (ArrayVal [])
 
-
 evalForStringCompr :: Ident -> Value -> ArrayCompr -> SubsM [Value]
-evalForStringCompr ident (StringVal []) arrayCompr = return ([StringVal []])
+evalForStringCompr _ (StringVal []) _ = return [StringVal []]
 evalForStringCompr ident (StringVal (h:t)) arrayCompr = do
   putVar ident (StringVal [h])
   val <- evalExpr (Compr arrayCompr)
   rest <- evalForStringCompr ident (StringVal t) arrayCompr
   return (val:rest)
+evalForStringCompr _ _ _ = return [UndefinedVal]
 
 evalForIntCompr :: Ident -> Value -> ArrayCompr -> SubsM [Value]
-evalForIntCompr ident (ArrayVal []) arrayCompr = return ([ArrayVal []])
-evalForIntCompr ident (ArrayVal ((IntVal h):t)) arrayCompr = do
+evalForIntCompr _ (ArrayVal []) _ = return [ArrayVal []]
+evalForIntCompr ident (ArrayVal (IntVal h:t)) arrayCompr = do
   putVar ident (IntVal h)
   val <- evalExpr (Compr arrayCompr)
   rest <- evalForIntCompr ident (ArrayVal t) arrayCompr
   return (val:rest)
+evalForIntCompr _ _ _ = return [UndefinedVal]
+
+flatten :: [Value] -> [Value]
+flatten [] = []
+flatten ((ArrayVal h):t) = flatten h ++ flatten t
+flatten (h:t) =  h : flatten t
+
 
 
 -- -- f [Value] -> Either Error Value' with `Value
@@ -302,9 +310,3 @@ runExpr :: Expr -> Either Error Value
 runExpr expr = do
   (val, _) <-runSubsM (evalExpr expr) initialContext
   return val
-
--- main = equality [(IntVal 2),(IntVal 1)]
--- main = runExpr (Call "===" [Array [Number 2, Number 2], Array [Number 2, Number 2]])
--- main = runExpr (Assign "x" (Number 1))
--- main = runExpr (Comma (Assign "x" (Number 1)) (Call "+" [(Var "x"),(Number 3)]))
-main = runExpr (Compr (ACIf (Call "===" [ (Number 1), (Number 1) ]) (ACBody (Number 2) ))) -- what is it supposed to return because now it returns emty array []
