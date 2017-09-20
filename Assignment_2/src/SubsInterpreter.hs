@@ -134,11 +134,13 @@ less _ = Left "Invalid comparison"
 -- let (Writer (y, v')) = f x in
 -- Writer (y, v `mappend` v')
 -- is this applied on
--- should replace the variable environment with the result of applying f to it.
--- modifyEnv :: (Env -> Env) -> SubsM ()
--- modifyEnv f = SubsM (\(e0,_) ->  Right((),f e0))
 
--- should set the value of the variable i to v in the current environment
+-- should replace the variable environment with the result of applying f to it.
+modifyEnv :: (Env -> Env) -> SubsM ()
+modifyEnv f = SubsM (\(e0,_) ->  Right((),f e0))
+-- gets the current environnment
+
+
 putVar :: Ident -> Value -> SubsM ()
 putVar name val = SubsM (\(e0,_) -> Right((), Map.insert name val e0))
 
@@ -150,6 +152,8 @@ getVar name =  SubsM (\(e0,_) -> case lookup name (Map.assocs e0) of
                                     Nothing -> Left ("unbound variable: "++name)
                                     Just v -> Right (v,e0))
 
+getEnv :: SubsM Env
+getEnv  =  SubsM (\(e0,pe0) -> return (e0,e0) )
 
 -- Primitive::[Value] -> Either Error Value
 -- SubsM {runSubsM :: Context -> Either Error (a, Env)}
@@ -185,7 +189,6 @@ evalExpr (Comma a b) = evalExpr a >> evalExpr b
 
 evalExpr (Assign ident expr) = do
   a <- evalExpr expr
-  putVar ident a
   return a
 
 evalExpr (Array l) = do
@@ -242,6 +245,57 @@ evalForIntCompr ident (ArrayVal ((IntVal h):t)) arrayCompr = do
 --                                     -- (result, _) <- (fmap f valList)
 --                                     -- return result
 
+evalExpr (Compr (ACIf e acompr)) = do
+                                       val <- evalExpr e
+                                       case val of
+                                           TrueVal -> evalExpr (Compr acompr)
+                                           FalseVal -> return (ArrayVal []) -- ?
+-- data ArrayCompr = ACBody Expr
+--                | ACFor Ident Expr ArrayCompr
+--                | ACIf Expr ArrayCompr
+--                deriving (Eq, Read, Show)
+
+-- First iteration
+-- evalExpr (Compr (ACBody e)) = evalExpr e
+-- evalExpr (Compr (ACFor var e acompr)) = do
+--     valueExpr <- evalExpr e
+--     case valueExpr of 
+--       ArrayVal l -> do mapM dostuff [v | v <- l] 
+--                         where dostuff x = do  putVar var x
+--                                               return evalExpr (Compr acompr)
+--       StringVal s -> do mapM dostuff [v | v <- s] 
+--                         where dostuff x = do  putVar var x
+--                                               return evalExpr (Compr acompr)
+--                       --v1<-evalExpr (Compr acompr)
+-- use fmap
+-- evalExpr (Compr (ACBody e)) = evalExpr e
+-- evalExpr (Compr (ACFor var e acompr)) = do
+--     valueExpr <- evalExpr e
+--     case valueExpr of 
+--       ArrayVal l -> do fmap dostuff [v | v <- l] 
+--                         where dostuff x = do  putVar var x
+--                                               return evalExpr (Compr acompr)
+--       StringVal s -> do fmap dostuff [v | v <- s] 
+--                         where dostuff x = do  putVar var x
+--                                               return evalExpr (Compr acompr)
+--                       --v1<-evalExpr (Compr acompr)
+
+-- Second Iteration          
+-- evalExpr (Compr (ACBody e)) = evalExpr e
+-- evalExpr (Compr (ACFor var e acompr)) = do
+--     valueExpr <- evalExpr e
+--     case valueExpr of 
+--       ArrayVal l -> do  env <- getEnv
+--                         case env of 
+--                           Left err -> return undefined 
+--                           Right (eenv,erer) -> do c<- fmap dostuff [StringVal (show v) | v <- l] 
+--                                                   modifyEnv (\e -> currentEnv)
+--                                                   where dostuff x = do  putVar var x
+--                                                                         return evalExpr (Compr acompr)
+--       StringVal s -> do fmap dostuff [v | v <- s] 
+--                         where dostuff x = do  putVar var x
+--                                               return evalExpr (Compr acompr)
+
 runExpr :: Expr -> Either Error Value
 runExpr expr = do
   (val, _) <-runSubsM (evalExpr expr) initialContext
@@ -251,3 +305,4 @@ runExpr expr = do
 -- main = runExpr (Call "===" [Array [Number 2, Number 2], Array [Number 2, Number 2]])
 -- main = runExpr (Assign "x" (Number 1))
 -- main = runExpr (Comma (Assign "x" (Number 1)) (Call "+" [(Var "x"),(Number 3)]))
+main = runExpr (Compr (ACIf (Call "===" [ (Number 1), (Number 1) ]) (ACBody (Number 2) ))) -- what is it supposed to return because now it returns emty array []
