@@ -27,7 +27,7 @@ data Value = IntVal Int
 type Error = String
 type Env = Map Ident Value -- variable aka symb table
 type Primitive = [Value] -> Either Error Value  -- preexisting func
-type PEnv = Map FunName Primitive  --primitive env
+type PEnv = Map FunName Primitive  -- primitive env
 type Context = (Env, PEnv)
 
 initialContext :: Context
@@ -101,19 +101,19 @@ modulo _ = Left "\"*\" applied to incompatible types, try: Int % Int"
 -- will always yield false.
 equality::[Value] -> Either Error Value
 equality [IntVal a ,IntVal b] = if a == b then Right TrueVal
-                     else Right FalseVal
+                                  else Right FalseVal
 equality [UndefinedVal,UndefinedVal] = Right TrueVal
 equality [TrueVal,TrueVal] = Right TrueVal
 equality [FalseVal,FalseVal] = Right TrueVal
 equality [TrueVal,FalseVal] = Right FalseVal
 equality [FalseVal,TrueVal] = Right FalseVal
 equality [ArrayVal [], ArrayVal []] = Right TrueVal
-equality [ArrayVal _, ArrayVal []] = Left "Mismatched Sizes"
-equality [ArrayVal [], ArrayVal _] = Left "Mismatched Sizes"
-equality [ArrayVal (h1:t1), ArrayVal (h2:t2)] = case equality [h1,h2] of 
+equality [ArrayVal _, ArrayVal []] = Right FalseVal
+equality [ArrayVal [], ArrayVal _] = Right FalseVal
+equality [ArrayVal (h1:t1), ArrayVal (h2:t2)] = case equality [h1,h2] of
                                                       Right TrueVal -> equality [ArrayVal t1, ArrayVal t2]
-                                                      Left message -> Left message
-                                                      _ -> Left "Not equal"
+                                                      Right FalseVal -> Right FalseVal
+                                                      _ -> Left "Error"
 
 equality [StringVal s1,StringVal s2] = if s1 == s2 then Right TrueVal
                               else Right FalseVal
@@ -121,7 +121,7 @@ equality [_] = Left "Too few arguments"
 equality [_, _] = Left "Types do not match"
 equality _ = Left "Too many arguments"
 
-----------------------------------------------------------------------------
+-- --------------------------------------------------------------------------
 -- On the other hand, the two arguments to the < operator
 -- must either both be integers or both be strings, where strings are compared using
 -- the usual lexicographic order.
@@ -180,8 +180,7 @@ evalExpr (String n) = return (StringVal n)
 evalExpr Undefined = return UndefinedVal
 evalExpr TrueConst = return TrueVal
 evalExpr FalseConst = return FalseVal
-evalExpr (Var name) = do 
-  getVar name
+evalExpr (Var name) = getVar name
 evalExpr (Comma a b) = evalExpr a >> evalExpr b
 evalExpr (Assign ident expr) = do
   let a = evalExpr expr
@@ -199,7 +198,6 @@ evalExpr (Assign ident expr) = do
 --                                     -- valList21 <- [ v | Right (v,_) <- [(evalExpr expr) | expr <- l]]
 --                                     -- (result, _) <- (fmap f valList)
 --                                     -- return result
-
 evalExpr (Call fname l) = do
   funct <- getFunction fname
   v <- mapM evalExpr l
@@ -208,7 +206,9 @@ evalExpr (Call fname l) = do
     Right val -> return val
 
 -- dummy implemetation not to throw errors
-evalExpr (Array _) = return (IntVal 1)
+evalExpr (Array l) = do
+  val <- mapM evalExpr l
+  return (ArrayVal val)
 evalExpr (Compr _) = return (IntVal 1)
 
 runExpr :: Expr -> Either Error Value
@@ -217,4 +217,4 @@ runExpr expr = do
   return val
 
 -- main = equality [(IntVal 2),(IntVal 1)]
--- main = runExpr (Call "===" [(Number 1), (Number 1)])
+-- main = runExpr (Call "===" [Array [Number 2, Number 2], Array [Number 2, Number 2]])
