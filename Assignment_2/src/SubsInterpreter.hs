@@ -7,7 +7,6 @@ module SubsInterpreter
 
 import SubsAst
 
--- You might need the following imports
 import Control.Monad
 import qualified Data.Map as Map
 import Data.Map(Map)
@@ -113,12 +112,12 @@ equality [ArrayVal [], ArrayVal _] = Right FalseVal
 equality [ArrayVal (h1:t1), ArrayVal (h2:t2)] = case equality [h1,h2] of
                                                       Right TrueVal -> equality [ArrayVal t1, ArrayVal t2]
                                                       Right FalseVal -> Right FalseVal
-                                                      _ -> Left "Error"
+                                                      _ -> Right FalseVal
 
 equality [StringVal s1,StringVal s2] = if s1 == s2 then Right TrueVal
                               else Right FalseVal
 equality [_] = Left "Too few arguments"
-equality [_, _] = Left "Types do not match"
+equality [_, _] = Right FalseVal
 equality _ = Left "Too many arguments"
 
 -- --------------------------------------------------------------------------
@@ -137,17 +136,18 @@ less _ = Left "Invalid comparison"
 -- is this applied on
 -- should replace the variable environment with the result of applying f to it.
 -- modifyEnv :: (Env -> Env) -> SubsM ()
--- modifyEnv f = SubsM (\(e0,_) ->  Right((),(f e0)))
+-- modifyEnv f = SubsM (\(e0,_) ->  Right((),f e0))
 
 -- should set the value of the variable i to v in the current environment
 putVar :: Ident -> Value -> SubsM ()
 putVar name val = SubsM (\(e0,_) -> Right((), Map.insert name val e0))
 
+
 -- helper function
 -- should read the value of the variable i in the current environment
 getVar :: Ident -> SubsM Value
-getVar name =  SubsM (\(e0,_) -> case lookup name $ Map.assocs e0 of
-                                    Nothing -> Left ("unbound variable:"++name)
+getVar name =  SubsM (\(e0,_) -> case lookup name (Map.assocs e0) of
+                                    Nothing -> Left ("unbound variable: "++name)
                                     Just v -> Right (v,e0))
 
 
@@ -184,9 +184,9 @@ evalExpr (Var name) = getVar name
 evalExpr (Comma a b) = evalExpr a >> evalExpr b
 
 evalExpr (Assign ident expr) = do
-  let a = evalExpr expr
-  _ <- fmap (putVar ident) a
-  a
+  a <- evalExpr expr
+  putVar ident a
+  return a
 
 evalExpr (Array l) = do
   val <- mapM evalExpr l
@@ -211,8 +211,10 @@ evalExpr (Call fname l) = do
 --                                     -- (result, _) <- (fmap f valList)
 --                                     -- return result
 
+evalExpr (Array l) = do
+  val <- mapM evalExpr l
+  return (ArrayVal val)
 
--- dummy implemetation not to throw errors
 evalExpr (Compr _) = return (IntVal 1)
 
 runExpr :: Expr -> Either Error Value
@@ -222,3 +224,5 @@ runExpr expr = do
 
 -- main = equality [(IntVal 2),(IntVal 1)]
 -- main = runExpr (Call "===" [Array [Number 2, Number 2], Array [Number 2, Number 2]])
+-- main = runExpr (Assign "x" (Number 1))
+-- main = runExpr (Comma (Assign "x" (Number 1)) (Call "+" [(Var "x"),(Number 3)]))
