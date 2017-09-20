@@ -182,10 +182,22 @@ evalExpr TrueConst = return TrueVal
 evalExpr FalseConst = return FalseVal
 evalExpr (Var name) = getVar name
 evalExpr (Comma a b) = evalExpr a >> evalExpr b
+
 evalExpr (Assign ident expr) = do
   let a = evalExpr expr
   _ <- fmap (putVar ident) a
   a
+
+evalExpr (Array l) = do
+  val <- mapM evalExpr l
+  return (ArrayVal val)
+
+evalExpr (Call fname l) = do
+  funct <- getFunction fname
+  v <- mapM evalExpr l
+  case funct v of
+    Left err -> fail err
+    Right val -> return val
 
 -- -- f [Value] -> Either Error Value' with `Value
 -- evalExpr (Call functionName l) = do f <- getFunction functionName
@@ -198,17 +210,9 @@ evalExpr (Assign ident expr) = do
 --                                     -- valList21 <- [ v | Right (v,_) <- [(evalExpr expr) | expr <- l]]
 --                                     -- (result, _) <- (fmap f valList)
 --                                     -- return result
-evalExpr (Call fname l) = do
-  funct <- getFunction fname
-  v <- mapM evalExpr l
-  case funct v of
-    Left err -> fail err
-    Right val -> return val
+
 
 -- dummy implemetation not to throw errors
-evalExpr (Array l) = do
-  val <- mapM evalExpr l
-  return (ArrayVal val)
 evalExpr (Compr _) = return (IntVal 1)
 
 runExpr :: Expr -> Either Error Value
