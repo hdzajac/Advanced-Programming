@@ -27,7 +27,7 @@ type PEnv = Map FunName Primitive  -- primitive env
 type Context = (Env, PEnv)
 
 
--- Monad definition 
+-- Monad definition
 
 newtype SubsM a = SubsM {runSubsM :: Context -> Either Error (a, Env)}
 
@@ -118,13 +118,15 @@ less _ = Left "Invalid comparison"
 
 -- Not used to avoid error commented
 -- -- gets the current environnment
-getEnv :: SubsM Env
-getEnv  =  SubsM (\(e0, _) -> return (e0,e0) )
+-- getEnv :: SubsM Env
+-- getEnv = SubsM (\(e0, _) -> return (e0,e0) )
 
+-- setEnv :: Env -> SubsM Env
+-- setEnv newEnv = SubsM (\(_, _) -> return (newEnv, newEnv))
 
--- -- should replace the variable environment with the result of applying f to it.
-modifyEnv :: (Env -> Env) -> SubsM ()
-modifyEnv f = SubsM (\(e0,_) ->  Right((),f e0))
+-- -- -- should replace the variable environment with the result of applying f to it.
+-- modifyEnv :: (Env -> Env) -> SubsM ()
+-- modifyEnv f = SubsM (\(e0,_) ->  Right((),f e0))
 
 
 putVar :: Ident -> Value -> SubsM ()
@@ -141,11 +143,15 @@ getFunction :: FunName -> SubsM Primitive
 getFunction name = SubsM (\(e0,pe0) ->  case lookup name $ Map.assocs pe0 of
                                            Nothing -> Left ("unbound function:" ++ name)
                                            Just f -> Right (f,e0))
+checkVar :: Ident -> SubsM (Maybe Value)
+checkVar name = SubsM (\(e0,_) -> case lookup name (Map.assocs e0) of
+                                         Nothing -> Right (Nothing, e0)
+                                         Just val -> Right (Just val, e0))
 
+deleteVar :: Ident -> SubsM ()
+deleteVar name = SubsM (\(e0,_) -> Right((), Map.delete name e0))
 
-
-
--- Expressions evaluation 
+-- Expressions evaluation
 
 runExpr :: Expr -> Either Error Value
 runExpr expr = do
@@ -203,18 +209,25 @@ evalExpr (Compr (ACIf e acompr)) = do
   case val of
     TrueVal -> evalExpr (Compr acompr)
     FalseVal -> return (ArrayVal [])
-    _ -> return (UndefinedVal)
+    _ -> return UndefinedVal
 
 evalExpr (Compr (ACFor ident expr arrayCompr)) = do
+  currentVar <- checkVar ident
   evaluated <- evalExpr expr
   case evaluated of
-    (StringVal a) -> do 
+    (StringVal a) -> do
       result <- evalForStringCompr ident (StringVal a) arrayCompr
+      _ <- handleForEnd currentVar ident
       return (ArrayVal (flatten result))
     (ArrayVal a)-> do
       result <- evalForIntCompr ident (ArrayVal a) arrayCompr
+      _ <- handleForEnd currentVar ident
       return (ArrayVal (flatten result))
     _ -> return (ArrayVal [])
+
+handleForEnd :: Maybe Value -> Ident -> SubsM ()
+handleForEnd Nothing ident = deleteVar ident
+handleForEnd (Just value) ident = putVar ident value
 
 evalForStringCompr :: Ident -> Value -> ArrayCompr -> SubsM [Value]
 evalForStringCompr _ (StringVal []) _ = return [StringVal []]
@@ -236,6 +249,27 @@ evalForIntCompr _ _ _ = return [UndefinedVal]
 
 flatten :: [Value] -> [Value]
 flatten [] = []
-flatten ((ArrayVal h):t) = flatten h ++ flatten t
+flatten (ArrayVal h:t) = flatten h ++ flatten t
 flatten (h:t) =  h : flatten t
 
+
+-- something :: SubsM Value
+-- something = do putVar "x" (IntVal 5)
+--                env <- getEnv
+--                putVar "x" (IntVal 10)
+--                val  <- getVar "x"
+--                setEnv env
+--                val2 <- getVar "x"
+--                return val2
+-- main :: IO ()
+-- main = do let result = case runSubsM something initialContext of
+--                                   Left errMsg -> errMsg
+--                                   Right (a,e) -> (show a)
+--           putStrLn (show result)
+
+
+   -- Comma (Assign "x" (Number 0))
+   --          (Comma (Compr (ACFor "y"
+   --                               (Array [Number 1,Number 2,Number 3])
+   --                               (ACBody (Assign "x" (Var "y")))))
+   --                 (Var "x"))

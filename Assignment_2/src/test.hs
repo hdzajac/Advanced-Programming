@@ -23,7 +23,7 @@ assignt = Assign "x" (Number 1)
 general1 = Comma (Assign "x" (Number 1)) (Call "+" [(Var "x"),(Number 3)])
 general2 = Compr (ACIf (Call "===" [ (Number 1), (Number 1) ]) (ACBody (Number 2) ))
 general3 = Call "===" [Array [Number 2, Number 2], Array [Number 2, Number 2]]
-
+general4 = Comma (Assign "x" (Number 0)) (Comma (Compr (ACFor "y" (Array [Number 1,Number 2,Number 3]) (ACBody (Assign "x" (Var "y"))))) (Var "x"))
 
 
 testEF = TestCase $ assertEqual "Inequality" (Right FalseVal) (runExpr ef)
@@ -46,7 +46,7 @@ testAssignT = TestCase $ assertEqual "Correct assignment" (Right (IntVal 1)) (ru
 testgeneral1 = TestCase $ assertEqual "General 1" (Right (IntVal 4)) (runExpr general1)
 testgeneral2 = TestCase $ assertEqual "General 2" (Right (IntVal 2)) (runExpr general2)
 testgeneral3 = TestCase $ assertEqual "General 3" (Right TrueVal) (runExpr general3)
-
+testgeneral4 = TestCase $ assertEqual "General 4" (Right (IntVal 3)) (runExpr general4)
 
 
 
@@ -55,7 +55,6 @@ tests = TestList [TestLabel "Equality" $ TestList [testET, testEF],
                   TestLabel "Sum" $ TestList [testST, testSF],
                   TestLabel "Minus" $ TestList [testMT, testMF],
                   TestLabel "Modulo " $ TestList [testMODT, testMODF, testMODE],
-                  TestLabel "Assignment" $ TestList [testAssignT, testgeneral1, testgeneral2, testgeneral3]]
-
+                  TestLabel "Assignment" $ TestList [testAssignT, testgeneral1, testgeneral2, testgeneral3, testgeneral4]]
 main = runTestTT tests
 
