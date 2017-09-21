@@ -1,7 +1,7 @@
 module SubsInterpreter
        (
-         Value(..)
-       , runExpr
+         Value(..),
+         runExpr
        )
        where
 
@@ -12,9 +12,6 @@ import qualified Data.Map as Map
 import Data.Map(Map)
 
 
--- | A value is either an integer, the special constant undefined,
---   true, false, a string, or an array of values.
--- Expressions are evaluated to values.
 data Value = IntVal Int
            | UndefinedVal
            | TrueVal | FalseVal
@@ -29,6 +26,28 @@ type Primitive = [Value] -> Either Error Value  -- preexisting func
 type PEnv = Map FunName Primitive  -- primitive env
 type Context = (Env, PEnv)
 
+
+-- Monad definition 
+
+newtype SubsM a = SubsM {runSubsM :: Context -> Either Error (a, Env)}
+
+instance Functor SubsM where
+  fmap = liftM
+
+instance Applicative SubsM where
+  pure = return
+  (<*>) = ap
+
+instance Monad SubsM where
+  return x = SubsM (\(e,_) -> Right (x,e))
+  f >>= m = SubsM (\(e0,ep0) -> case runSubsM f (e0,ep0) of
+                                  Left errMsg -> Left errMsg
+                                  Right (a,e) -> runSubsM (m a) (e,ep0))
+  fail s = SubsM (\_-> Left s)
+
+
+-- Context set up
+
 initialContext :: Context
 initialContext = (Map.empty, initialPEnv)
   where initialPEnv =
@@ -40,34 +59,6 @@ initialContext = (Map.empty, initialPEnv)
                        , ("%", modulo)
                        , ("Array", mkArray)
                        ]
-
-newtype SubsM a = SubsM {runSubsM :: Context -> Either Error (a, Env)}
-
--- newtype SubsM a = SubsM {runSubsM :: Context -> Either Error (a, Env)}
-instance Functor SubsM where
-  -- (a->b) -> M a -> M b
-  -- (a->b) -> ((Env, PEnv) -> Either Error (a,Env)) -> ((Env, PEnv) -> Either Error (b,Env))
-  -- -fmap f mf =  SubsM (\(e,pe0)-> (case (runSubsM mf (e,pe0))  of
-  -- -                                  Left errMsg -> Left errMsg
-  -- -                                  Right (a,e) -> Right ((f a),e)))
-  fmap = liftM
-
-
-instance Applicative SubsM where
-  pure = return
-  (<*>) = ap
-
-instance Monad SubsM where
-  -- return a :: a->SubsM ((Env, PEnv) -> Either Error (a,Env) )
-  -- define cases for either
-  return x = SubsM (\(e,_) -> Right (x,e))
-  -- f >>= m ::  SubsM(Env, PEnv) -> Either Error (a,Env)
-  --              -> (a -> SubsM ((Env, PEnv) -> Either Error (b,Env) ))
-  --              -> SubsM (Env, PEnv) -> Either Error (b,Env)
-  f >>= m = SubsM (\(e0,ep0) -> case runSubsM f (e0,ep0) of
-                                  Left errMsg -> Left errMsg
-                                  Right (a,e) -> runSubsM (m a) (e,ep0))
-  fail s = SubsM (\_-> Left s)
 
 mkArray :: Primitive
 mkArray [IntVal n]
@@ -94,10 +85,6 @@ modulo [IntVal _, IntVal 0] = Left "\"% 0\" is undefined, try different value"
 modulo [IntVal a, IntVal b] = return $ IntVal (a `mod` b)
 modulo _ = Left "\"*\" applied to incompatible types, try: Int % Int"
 
--- -----------------------------------------------------------------------------
--- The === operator compares its arguments for structural equality, without any coercions. ??????? what does this mean
--- It accepts operands of any type, but comparison of, e.g., a string and a number
--- will always yield false.
 equality::[Value] -> Either Error Value
 equality [IntVal a ,IntVal b] = if a == b then Right TrueVal
                                   else Right FalseVal
@@ -120,10 +107,7 @@ equality [_] = Left "Too few arguments"
 equality [_, _] = Right FalseVal
 equality _ = Left "Too many arguments"
 
--- --------------------------------------------------------------------------
--- On the other hand, the two arguments to the < operator
--- must either both be integers or both be strings, where strings are compared using
--- the usual lexicographic order.
+
 less::[Value] -> Either Error Value
 less [IntVal a ,IntVal b] = if a < b then Right TrueVal
                   else Right FalseVal
@@ -133,38 +117,42 @@ less _ = Left "Invalid comparison"
 
 
 -- Not used to avoid error commented
--- getEnv :: SubsM Env
--- getEnv  =  SubsM (\(e0, _) -> return (e0,e0) )
+-- -- gets the current environnment
+getEnv :: SubsM Env
+getEnv  =  SubsM (\(e0, _) -> return (e0,e0) )
 
 
 -- -- should replace the variable environment with the result of applying f to it.
--- modifyEnv :: (Env -> Env) -> SubsM ()
--- modifyEnv f = SubsM (\(e0,_) ->  Right((),f e0))
--- -- gets the current environnment
+modifyEnv :: (Env -> Env) -> SubsM ()
+modifyEnv f = SubsM (\(e0,_) ->  Right((),f e0))
 
 
 putVar :: Ident -> Value -> SubsM ()
 putVar name val = SubsM (\(e0,_) -> Right((), Map.insert name val e0))
 
 
--- helper function
 -- should read the value of the variable i in the current environment
 getVar :: Ident -> SubsM Value
 getVar name =  SubsM (\(e0,_) -> case lookup name (Map.assocs e0) of
                                     Nothing -> Left ("unbound variable: "++name)
                                     Just v -> Right (v,e0))
 
--- Primitive::[Value] -> Either Error Value
--- SubsM {runSubsM :: Context -> Either Error (a, Env)}
--- SubsM {runSubsM :: Context -> Either Error (Primitive, Env)}
--- SubsM {runSubsM :: Context -> Either Error (Primitive, Env)}
--- helper function
--- should look up the function implementing primitive i.
-
 getFunction :: FunName -> SubsM Primitive
 getFunction name = SubsM (\(e0,pe0) ->  case lookup name $ Map.assocs pe0 of
                                            Nothing -> Left ("unbound function:" ++ name)
                                            Just f -> Right (f,e0))
+
+
+
+
+-- Expressions evaluation 
+
+runExpr :: Expr -> Either Error Value
+runExpr expr = do
+  (val, _) <-runSubsM (evalExpr expr) initialContext
+  return val
+
+
 -- data Expr = Number Int
 --          | String String
 --          | Array [Expr]
@@ -179,11 +167,17 @@ getFunction name = SubsM (\(e0,pe0) ->  case lookup name $ Map.assocs pe0 of
 --          deriving (Eq, Read, Show)
 evalExpr :: Expr -> SubsM Value
 evalExpr (Number n) = return (IntVal n)
+
 evalExpr (String n) = return (StringVal n)
+
 evalExpr Undefined = return UndefinedVal
+
 evalExpr TrueConst = return TrueVal
+
 evalExpr FalseConst = return FalseVal
+
 evalExpr (Var name) = getVar name
+
 evalExpr (Comma a b) = evalExpr a >> evalExpr b
 
 evalExpr (Assign ident expr) = do
@@ -203,7 +197,6 @@ evalExpr (Call fname l) = do
     Right val -> return val
 
 evalExpr (Compr (ACBody expr)) = evalExpr expr
-
 
 evalExpr (Compr (ACIf e acompr)) = do
   val <- evalExpr e
@@ -246,67 +239,3 @@ flatten [] = []
 flatten ((ArrayVal h):t) = flatten h ++ flatten t
 flatten (h:t) =  h : flatten t
 
-
-
--- -- f [Value] -> Either Error Value' with `Value
--- evalExpr (Call functionName l) = do f <- getFunction functionName
---                                     guard (length l == 0) >> return Undefined
---                                     expr <- l
---                                     vals <- fmap evalExpr expr
---                                     (resutl, _) <- fmap f vals
---                                     return result
---                                     -- correctExpr <- guard (Undefined) >> fail
---                                     -- valList21 <- [ v | Right (v,_) <- [(evalExpr expr) | expr <- l]]
---                                     -- (result, _) <- (fmap f valList)
---                                     -- return result
-
--- data ArrayCompr = ACBody Expr
---                | ACFor Ident Expr ArrayCompr
---                | ACIf Expr ArrayCompr
---                deriving (Eq, Read, Show)
-
--- First iteration
--- evalExpr (Compr (ACBody e)) = evalExpr e
--- evalExpr (Compr (ACFor var e acompr)) = do
---     valueExpr <- evalExpr e
---     case valueExpr of 
---       ArrayVal l -> do mapM dostuff [v | v <- l] 
---                         where dostuff x = do  putVar var x
---                                               return evalExpr (Compr acompr)
---       StringVal s -> do mapM dostuff [v | v <- s] 
---                         where dostuff x = do  putVar var x
---                                               return evalExpr (Compr acompr)
---                       --v1<-evalExpr (Compr acompr)
--- use fmap
--- evalExpr (Compr (ACBody e)) = evalExpr e
--- evalExpr (Compr (ACFor var e acompr)) = do
---     valueExpr <- evalExpr e
---     case valueExpr of 
---       ArrayVal l -> do fmap dostuff [v | v <- l] 
---                         where dostuff x = do  putVar var x
---                                               return evalExpr (Compr acompr)
---       StringVal s -> do fmap dostuff [v | v <- s] 
---                         where dostuff x = do  putVar var x
---                                               return evalExpr (Compr acompr)
---                       --v1<-evalExpr (Compr acompr)
-
--- Second Iteration          
--- evalExpr (Compr (ACBody e)) = evalExpr e
--- evalExpr (Compr (ACFor var e acompr)) = do
---     valueExpr <- evalExpr e
---     case valueExpr of 
---       ArrayVal l -> do  env <- getEnv
---                         case env of 
---                           Left err -> return undefined 
---                           Right (eenv,erer) -> do c<- fmap dostuff [StringVal (show v) | v <- l] 
---                                                   modifyEnv (\e -> currentEnv)
---                                                   where dostuff x = do  putVar var x
---                                                                         return evalExpr (Compr acompr)
---       StringVal s -> do fmap dostuff [v | v <- s] 
---                         where dostuff x = do  putVar var x
---                                               return evalExpr (Compr acompr)
-
-runExpr :: Expr -> Either Error Value
-runExpr expr = do
-  (val, _) <-runSubsM (evalExpr expr) initialContext
-  return val
