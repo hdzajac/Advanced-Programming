@@ -1,6 +1,7 @@
 import Test.HUnit
 import SubsInterpreter
 import SubsAst
+import Test.QuickCheck
 
 ef = Call "===" [Number 2, Number 1]
 et = Call "===" [Number 2, Number 2]
@@ -56,5 +57,11 @@ tests = TestList [TestLabel "Equality" $ TestList [testET, testEF],
                   TestLabel "Minus" $ TestList [testMT, testMF],
                   TestLabel "Modulo " $ TestList [testMODT, testMODF, testMODE],
                   TestLabel "Assignment" $ TestList [testAssignT, testgeneral1, testgeneral2, testgeneral3, testgeneral4]]
+
+
+
+
+
+
 main = runTestTT tests
 
