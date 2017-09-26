@@ -3,36 +3,25 @@ module Parser.Impl where
 import SubsAst
 import Data.Char
 import Text.Parsec.String
-import Control.Applicative
+import Text.Parsec.Prim
 import Control.Monad
 import Text.Parsec (ParseError)
-import qualified Data.Map as Map
-import Data.Map(Map)
-import qualified Text.Parsec as P
+import Text.Parsec
 
 -- can change this if you want, but must be an instance of Show and Eq
 data CustomParseError = CustomParseError String
                 deriving (Show, Eq)
 
-type KeyStore = Map String String -- map of keywords
 
 
-keywords :: KeyStore
-keywords = keyStore
-  where keyStore =
-          Map.fromList [ ("true", "true")
-                       , ("false", "false")
-                       , ("for", "for")
-                       , ("undefined", "undefined")
-                       , ("of", "of")
-                       , ("if", "if")
-                       ]
+keywords :: [String]
+keywords = [ "true", "false", "for", "undefined", "of", "if", "case", "do"]
 
 
 -- To move removing whitespaces higher during parsing
 
 cParse :: Parser a -> String -> Either ParseError a
-cParse p = P.parse p ""
+cParse p = parse p ""
 
 lexeme :: Parser a -> Parser a
 lexeme p = do
@@ -48,7 +37,7 @@ parseWWS p = cParse wrapper
         p
 
 pWhitespaces :: Parser ()
-pWhitespaces = void $ P.many $ P.oneOf " \n\t"
+pWhitespaces = void $ many $ oneOf " \n\t"
 
 -- ---------------------------------------------------
 
@@ -58,26 +47,39 @@ parseString = undefined
 
 -- ------------ EXPR Start ---------------------------
 
-pExpr :: Parser Expr
-pExpr = pExpr' <|> pExpr1
-
-
-pExpr' :: Parser Expr
-pExpr' = do
-  e0 <- pExpr
-  void $ lexeme $ P.char ','
-  e1 <- pExpr
-  return (Comma e0 e1)
-
+-- pExpr :: Parser Expr <- todo: change for refactored
+-- pExpr = do
+--   e0 <- try pExpr
+--   void $ lexeme $ char ','
+--   e1 <- pExpr
+--   return (Comma e0 e1)
+--   <|> 
+--   do try pExpr1
 
 pExpr1 :: Parser Expr
-pExpr1 = pTerminal <|> pIdentWrap <|> pParen <|> pExpr1'
+pExpr1 = do
+  -- try pTerminal
+  -- <|>
+  try pAssignent
+    
+
+
+  -- <|> 
+  -- do try pParen
+  -- <|>
+  -- do try pExpr1'
 
 pTerminal :: Parser Expr
-pTerminal = pNumber <|> pString <|> pTrue <|> pFalse <|> pUndefined
-
-pIdentWrap :: Parser Expr
-pIdentWrap = undefined
+pTerminal = do
+  try pNumber 
+  <|>
+  do try pString
+  <|>
+  do try pTrue
+  <|>
+  do try pFalse
+  <|>
+  do try pUndefined
 
 pParen :: Parser Expr
 pParen = undefined
@@ -91,20 +93,20 @@ pExpr1' = undefined
 
 pNumber :: Parser Expr
 pNumber = do
-  n <- lexeme $ P.many1 P.digit
+  n <- lexeme $ many1 digit
   return (Number (read n))
 
 pString :: Parser Expr
 pString = lexeme $ do
   h <- firstChar
-  t <- P.many nonFirstChar
-  guard (case lookup (h:t) (Map.assocs keywords) of
-                                    Nothing -> True
-                                    Just _ -> False)
-  return (String (h:t))
+  t <- many nonFirstChar
+  let word = h:t
+  if word `notElem` keywords
+    then return (String word)
+    else fail "String can't be a keyword"
   where
-    firstChar = P.satisfy (\a -> isAscii a)
-    nonFirstChar = P.satisfy (\a -> isAscii  a) -- || a `elem` ["\'", "\"", "\n", "\t", "\\"] how to make it skip those signs?
+    firstChar = satisfy (\a -> isAscii a)
+    nonFirstChar = satisfy (\a -> isAscii  a) -- || a `elem` ["\'", "\"", "\n", "\t", "\\"] how to make it skip those signs?
 
 pTrue :: Parser Expr
 pTrue = do
@@ -126,32 +128,42 @@ pUndefined = do
 
 -- --------------------------------------------------------
 
--- ---------------  pIdentWrap -> Ident Ident'
-
+-- ---------------  Ident Ident' ------------
 
 pIdent :: Parser Expr
 pIdent = lexeme $ do
   h <- firstChar
-  t <- P.many nonFirstChar
-  -- guard () dunno what i wanted to write
-  return (Var (h:t))
+  t <- many nonFirstChar
+  let word = h:t
+  if word `notElem` keywords
+    then return (Var (h:t))
+    else fail "Identificator can't be a keyword"
   where 
-    firstChar = P.satisfy (\a -> isLetter a)
-    nonFirstChar = P.satisfy (\a -> isDigit a || isLetter a || a == '_')
+    firstChar = satisfy (\a -> isLetter a)
+    nonFirstChar = satisfy (\a -> isDigit a || isLetter a || a == '_')
 
-pIdent' :: Parser Expr
-pIdent' = undefined -- pEmpty -- <|> pAssignent <|> pFunCall todo implement / find out how to represent empty production, cause pEmpty doesn't really work
 
+pEmpty :: Parser Expr
+pEmpty = do
+  void $ lexeme $ eof
+  return Undefined
+
+pAssignent :: Parser Expr
+pAssignent = do
+  (Var i0) <- try pIdent
+  void $ try $ lexeme $ char '='
+  e0 <- lexeme $ pExpr1
+  return (Assign i0 e0)
 
 
 -- ------------ Utils -----------------------
 
 pWord :: Parser String
 pWord = do
-  e0 <- lexeme $ P.many1 $ letters
+  e0 <- lexeme $ many1 $ letters
   return e0
   where
-    letters = P.satisfy (\a -> isLetter a)
+    letters = satisfy (\a -> isLetter a)
 
 -- pEmpty :: Parser String -- todo Finish
 -- pEmpty = undefined
