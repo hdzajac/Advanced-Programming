@@ -58,16 +58,41 @@ parseString = undefined
 
 pExpr1 :: Parser Expr
 pExpr1 = do
-  -- try pTerminal
-  -- <|>
-  try pAssignent
-    
+  try pIdentOnly
+  <|>
+  do try pAssignent
+  <|>
+  do try pFunCall
+  <|>
+  do try pTerminal
+
+pExprs :: Parser Expr
+pExprs = do
+  try pEmpty
+  <|>
+  do
+    e0 <- try pExpr1
+    (Array c0) <- pCommaExpr
+    return (Array (e0:c0))
+
+pEmpty :: Parser Expr
+pEmpty = do
+  void $ lexeme $ try eof
+  return (Array [])
+
+pCommaExpr :: Parser Expr
+pCommaExpr = do
+  try pEmpty
+  <|>
+  do 
+    void $ try $ lexeme $ char ','
+    e0 <- try pExpr1
+    (Array c0) <- pCommaExpr
+    return (Array (e0:c0))
 
 
-  -- <|> 
-  -- do try pParen
-  -- <|>
-  -- do try pExpr1'
+
+-- ---------------  Terminal -----------------------
 
 pTerminal :: Parser Expr
 pTerminal = do
@@ -128,7 +153,7 @@ pUndefined = do
 
 -- --------------------------------------------------------
 
--- ---------------  Ident Ident' ------------
+-- ---------------  Ident ------------
 
 pIdent :: Parser Expr
 pIdent = lexeme $ do
@@ -143,17 +168,26 @@ pIdent = lexeme $ do
     nonFirstChar = satisfy (\a -> isDigit a || isLetter a || a == '_')
 
 
-pEmpty :: Parser Expr
-pEmpty = do
-  void $ lexeme $ eof
-  return Undefined
+pIdentOnly :: Parser Expr
+pIdentOnly = lexeme $ do
+  i0 <- try pIdent
+  void $ lexeme $ try eof
+  return i0
 
 pAssignent :: Parser Expr
-pAssignent = do
+pAssignent = lexeme $ do
   (Var i0) <- try pIdent
   void $ try $ lexeme $ char '='
   e0 <- lexeme $ pExpr1
   return (Assign i0 e0)
+
+pFunCall :: Parser Expr
+pFunCall = lexeme $ do
+  (Var i0) <- try pIdent
+  void $ try $ lexeme $ char '('
+  (Array e0) <- pExprs
+  void $ lexeme $ char ')'
+  return (Call i0 e0)
 
 
 -- ------------ Utils -----------------------
@@ -165,5 +199,5 @@ pWord = do
   where
     letters = satisfy (\a -> isLetter a)
 
--- pEmpty :: Parser String -- todo Finish
--- pEmpty = undefined
+-- pIdentOnly :: Parser String -- todo Finish
+-- pIdentOnly = undefined

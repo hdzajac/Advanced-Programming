@@ -11,7 +11,7 @@ n1 = parseWWS pTerminal "123    "
 n2 = parseWWS pTerminal "   231321123"
 n3 = parseWWS pTerminal "1"
 
-i1 = parseWWS pIdent "name"
+i1 = parseWWS pIdent "name    second"
 i2 = parseWWS pIdent "  n_321"
 i3 = parseWWS pIdent "dsADS_123___"
 
@@ -25,6 +25,8 @@ t2 = parseWWS pTerminal "false"
 t3 = parseWWS pTerminal "undefined"
 
 e1 = parseWWS pExpr1 "x = 5"
+e2 = parseWWS pExpr1 "x"
+e3 = parseWWS pExpr1 "do ( 12, 32, x)"
 
 
 testn1 = TestCase $ assertEqual "Number 1" (Right (Number 123)) (n1)
@@ -45,13 +47,15 @@ testt2 = TestCase $ assertEqual "False 1" (Right FalseConst) (t2)
 testt3 = TestCase $ assertEqual "Undefined 1" (Right Undefined) (t3)
 
 teste1 = TestCase $ assertEqual "Expression 1" (Right (Assign "x" (Number 5))) (e1)
+teste2 = TestCase $ assertEqual "Expression 2" (Right (Var "x")) (e2)
+teste3 = TestCase $ assertEqual "Expression 3" (Right (Call "do"  [Number 12, Number 32, Var "x"])) (e3)
 
 
 tests = TestList [TestLabel "Numbers" $ TestList [testn1, testn2, testn3],
           TestLabel "Ident" $ TestList [testi1, testi2, testi3],
           TestLabel "String" $ TestList [tests1, tests2, tests3],
           TestLabel "Terminal" $ TestList [testt1, testt2, testt3],
-          TestLabel "Expressions" $ TestList [teste1]]
+          TestLabel "Expressions" $ TestList [teste1, teste2, teste3]]
 
 
 
