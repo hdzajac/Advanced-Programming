@@ -96,22 +96,38 @@ pOperation e0 = do
     return (Call "===" [e0,e1])
 
 
+--pExpr2 :: Parser Expr
+--pExpr2 = 
+--  try ( do
+--    i0 <- pIdent
+--    (pFunCall i0))
+--  <|>
+--  try ( do
+--    i0 <- pIdent
+--    (pAssignent i0))  
+--  <|>
+--  try ( do
+--   i0 <- pIdent
+--    (pIdentOnly i0))  
+--  <|>
+--  do pTerminal
 pExpr2 :: Parser Expr
 pExpr2 = 
-  try ( do
+   do
     i0 <- pIdent
-    (pFunCall i0))
+    (pFunCall i0)
   <|>
-  try ( do
+   do
     i0 <- pIdent
-    (pAssignent i0))  
+    (pAssignent i0)
   <|>
-  try ( do
+  do
     i0 <- pIdent
-    (pIdentOnly i0))  
+    (pIdentOnly i0)
   <|>
   do pTerminal
-
+  
+  
 pExprs :: Parser Expr
 pExprs = do
   e0 <- try pExpr1
@@ -157,7 +173,7 @@ pTerminal = do
 pNumber :: Parser Expr
 pNumber = lexeme $ do
   h <- firstChar
-  t <- many1 nonFirstChar
+  t <- many nonFirstChar
   if (h=='-') then if ((length (h:t)) > 9) then fail "Number too large"
                                            else return (Number (-1 * (listToInt (t))))
               else if ((length (h:t)) > 8) then fail "Number too large"
