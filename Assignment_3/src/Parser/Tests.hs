@@ -35,6 +35,9 @@ es2 = parseWWS pExpr  " 5 ,   x , 120,undefined"
 
 o1 = parseWWS pExpr "a + b"
 o2 = parseWWS pExpr "a +b +b- 3"
+o3 = parseWWS pExpr "a === b "
+
+a1 = parseWWS pExpr "[ for ( x of ( 3 + 3 ) ) y ]"
 
 
 
@@ -65,13 +68,18 @@ testes1 = TestCase $ assertEqual "Expressions 1" (Right (Comma (Number 5) (Var "
 testes2 = TestCase $ assertEqual "Expressions 2" (Right (Comma (Number 5) (Comma (Var "x") (Comma (Var "x") (Comma (Number 120) (Comma (Number 120) Undefined)))))) (es2)
 
 testo1 = TestCase $ assertEqual "Operation 1" (Right (Call "+" [Var "a", Var "b"])) (o1)
-testo2 = TestCase $ assertEqual "Operation 1" (Right (Call "+" [Var "a", (Call "+" [Var "b", (Call "-" [Var "b", Number 3])])])) (o2)
+testo2 = TestCase $ assertEqual "Operation 2" (Right (Call "+" [Var "a", (Call "+" [Var "b", (Call "-" [Var "b", Number 3])])])) (o2)
+testo3 = TestCase $ assertEqual "Operation 3" (Right (Call "===" [Var "a",Var "b"])) (o3)
+
+testa1 = TestCase $ assertEqual "Array Comprhenesion 1" (Right (Compr (ACFor "x" (Call "+" [Number 3,Number 3]) (ACBody (Var "y"))))) (a1)
+
 
 tests = TestList [TestLabel "Numbers" $ TestList [testn1, testn2, testn3],
           TestLabel "Ident" $ TestList [testi1, testi2, testi3],
           TestLabel "String" $ TestList [tests1, tests2, tests3],
           TestLabel "Terminal" $ TestList [testt1, testt2, testt3],
-          TestLabel "Expressions" $ TestList [teste1, teste2, teste3, testfc1, testes1, testes2, testo1, testo2]]
+          TestLabel "Expressions" $ TestList [teste1, teste2, teste3, testfc1, testes1, testes2, testo1, testo2, testo3],
+          TestLabel "Array Comprhenesion" $ TestList [testa1]]
 
 
 

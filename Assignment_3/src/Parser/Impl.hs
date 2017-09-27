@@ -110,6 +110,27 @@ pExpr2 =
     i0 <- pIdent
     (pIdentOnly i0))  
  <|>
+  try ( do
+    void $ lexeme $ char '['
+    e0 <- pExprs
+    void $ lexeme $ char ']'
+    return e0
+    )
+ <|>
+   try ( do
+    void $ lexeme $ char '['
+    e0 <- pArrayFor
+    void $ lexeme $ char ']'
+    return e0
+    )
+ <|>
+    try ( do
+    void $ lexeme $ char '('
+    e0 <- pExpr
+    void $ lexeme $ char ')'
+    return e0
+    )
+ <|>
  do pTerminal
   
 pExprs :: Parser Expr
@@ -247,6 +268,46 @@ pFunCall (Var i0) = lexeme $ do
   void $ lexeme $ char ')'
   return (Call i0 e0)
 pFunCall _ = fail "Function call wrong ident error"
+
+
+
+-- --------- Array Compr ---------------------
+
+pArrayFor :: Parser Expr
+pArrayFor = do
+  void $ lexeme $ try $ string "for"
+  void $ lexeme $ char '('
+  (Var i0) <- pIdent
+  void $ lexeme $ string "of"
+  e0 <- pExpr1
+  void $ lexeme $ char ')'
+  a0 <- pArrayCompr
+  return (Compr (ACFor i0 e0 a0))
+
+pArrayIf :: Parser ArrayCompr
+pArrayIf = do
+  void $ lexeme $ try $ string "if"
+  void $ lexeme $ char '('
+  e0 <- pExpr1
+  void $ lexeme $ char ')'
+  a0 <- pArrayCompr
+  return (ACIf e0 a0)
+
+pArrayCompr :: Parser ArrayCompr
+pArrayCompr = 
+  do 
+    e0 <- try pExpr1
+    return (ACBody e0)
+  <|>
+  do 
+    (Compr a0) <- try pArrayFor
+    return a0
+  <|>
+  do try pArrayIf
+
+
+
+
 
 
 -- ------------ Utils -----------------------
