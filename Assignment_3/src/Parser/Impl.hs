@@ -157,24 +157,24 @@ pTerminal = do
 pNumber :: Parser Expr
 pNumber = lexeme $ do
   h <- firstChar
-  t <- P.many1 nonFirstChar
+  t <- many1 nonFirstChar
   if (h=='-') then if ((length (h:t)) > 9) then fail "Number too large"
                                            else return (Number (-1 * (listToInt (t))))
               else if ((length (h:t)) > 8) then fail "Number too large"
 			                               else return (Number (listToInt (h:t)))
   where 
-    firstChar = P.satisfy (\a -> a=='-' || isDigit a)
-    nonFirstChar = P.satisfy (\a -> isDigit a)
+    firstChar = satisfy (\a -> a=='-' || isDigit a)
+    nonFirstChar = satisfy (\a -> isDigit a)
 	
 pString :: Parser Expr
 pString = lexeme $ do
   h <- firstChar
-  t <- P.many nonFirstChar
+  t <- many nonFirstChar
   if( last t == '\'') then return (String (init (tail (h:t))))
                       else fail "Badly formed string"
   where
-    firstChar = P.satisfy (\a -> a=='\'')
-    nonFirstChar = P.satisfy (\a -> isAscii  a) -- || a `elem` ["\'", "\"", "\n", "\t", "\\"] how to make it skip those signs?
+    firstChar = satisfy (\a -> a=='\'')
+    nonFirstChar = satisfy (\a -> isAscii  a) -- || a `elem` ["\'", "\"", "\n", "\t", "\\"] how to make it skip those signs?
 
 
 pTrue :: Parser Expr
