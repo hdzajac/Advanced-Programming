@@ -68,7 +68,7 @@ testes1 = TestCase $ assertEqual "Expressions 1" (Right (Comma (Number 5) (Var "
 testes2 = TestCase $ assertEqual "Expressions 2" (Right (Comma (Number 5) (Comma (Var "x") (Comma (Var "x") (Comma (Number 120) (Comma (Number 120) Undefined)))))) (es2)
 
 testo1 = TestCase $ assertEqual "Operation 1" (Right (Call "+" [Var "a", Var "b"])) (o1)
-testo2 = TestCase $ assertEqual "Operation 2" (Right (Call "+" [Var "a", (Call "+" [Var "b", (Call "-" [Var "b", Number 3])])])) (o2)
+testo2 = TestCase $ assertEqual "Operation 2" (Right (Call "-" [Call "+" [Call "+" [Var "a",Var "b"],Var "b"],Number 3])) (o2)
 testo3 = TestCase $ assertEqual "Operation 3" (Right (Call "===" [Var "a",Var "b"])) (o3)
 
 testa1 = TestCase $ assertEqual "Array Comprhenesion 1" (Right (Compr (ACFor "x" (Call "+" [Number 3,Number 3]) (ACBody (Var "y"))))) (a1)

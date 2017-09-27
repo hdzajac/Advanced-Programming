@@ -58,43 +58,11 @@ pExpr =
 
 pExpr1 :: Parser Expr
 pExpr1 =
-  try ( do
-    e0 <- pExpr2
-    (pOperation e0))
+  do 
+    r0 <- try pRelationOp
+    return r0
   <|>
   do pExpr2
-
-pOperation :: Expr -> Parser Expr
-pOperation e0 = do
-  void $ lexeme $ char '+'
-  e1 <- pExpr1
-  return (Call "+" [e0,e1])
-  <|>
-  do
-    void $ lexeme $ char '-'
-    e1 <- pExpr1
-    return (Call "-" [e0,e1])
-  <|>
-  do
-    void $ lexeme $ char '*'
-    e1 <- pExpr1
-    return (Call "*" [e0,e1])
-  <|>
-  do
-    void $ lexeme $ char '%'
-    e1 <- pExpr1
-    return (Call "%" [e0,e1])
-  <|>
-  do
-    void $ lexeme $ char '<'
-    e1 <- pExpr1
-    return (Call "<" [e0,e1])
-  <|>
-  do
-    void  $ lexeme $ string "==="
-    e1 <- pExpr1
-    return (Call "===" [e0,e1])
-
 
 pExpr2 :: Parser Expr
 pExpr2 = 
@@ -175,6 +143,78 @@ pCommaExpr e0 = try ( do
     void $ lexeme $ char ','
     e1 <- pExpr1
     return (Comma e0 e1))
+
+
+-- -------------- Operations -------------------
+
+
+pRelationOp :: Parser Expr
+pRelationOp = pSubSumOp `chainl1` pCompOp
+
+pSubSumOp :: Parser Expr
+pSubSumOp = pTerm `chainl1` pAddOp
+
+pTerm :: Parser Expr
+pTerm = pFactor `chainl1` pMulOp
+
+pFactor :: Parser Expr
+pFactor = do
+  i0 <- try pIdent
+  return i0
+  <|>
+  do
+    pTerminal
+
+-- pOperation :: Expr -> Parser Expr
+-- pOperation e0 = do
+--   void $ lexeme $ char '+'
+--   e1 <- pExpr1
+--   return (Call "+" [e0,e1])
+--   <|>
+--   do
+--     void $ lexeme $ char '-'
+--     e1 <- pExpr1
+--     return (Call "-" [e0,e1])
+--   <|>
+--   do
+--     void $ lexeme $ char '*'
+--     e1 <- pExpr1
+--     return (Call "*" [e0,e1])
+--   <|>
+--   do
+--     void $ lexeme $ char '%'
+--     e1 <- pExpr1
+--     return (Call "%" [e0,e1])
+--   <|>
+--   do
+--     void $ lexeme $ char '<'
+--     e1 <- pExpr1
+--     return (Call "<" [e0,e1])
+--   <|>
+--   do
+--     void  $ lexeme $ string "==="
+--     e1 <- pExpr1
+--     return (Call "===" [e0,e1])
+
+
+pCompOp :: Parser (Expr -> Expr -> Expr)
+pCompOp = do 
+  a <- lexeme (string "===" <|> string "<")
+  return (functionCall a)
+
+
+pAddOp :: Parser (Expr -> Expr -> Expr)
+pAddOp = do 
+  a <- lexeme (string "+" <|> string "-")
+  return (functionCall a)
+
+pMulOp :: Parser (Expr -> Expr -> Expr)
+pMulOp = do 
+  a <- lexeme (string "*" <|> string "%")
+  return (functionCall a)
+
+functionCall :: String->Expr -> Expr -> Expr
+functionCall s e1 e2 = (Call s [e1,e2])
 
 
 -- ---------------  Terminal -----------------------
