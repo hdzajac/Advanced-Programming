@@ -155,20 +155,27 @@ pTerminal = do
 -- Terminal -> Number | String | "true" | "false" | "undefined"
 
 pNumber :: Parser Expr
-pNumber = do
-  n <- lexeme $ many1 digit
-  return (Number (read n))
-
+pNumber = lexeme $ do
+  h <- firstChar
+  t <- P.many1 nonFirstChar
+  if (h=='-') then if ((length (h:t)) > 9) then fail "Number too large"
+                                           else return (Number (-1 * (listToInt (t))))
+              else if ((length (h:t)) > 8) then fail "Number too large"
+			                               else return (Number (listToInt (h:t)))
+  where 
+    firstChar = P.satisfy (\a -> a=='-' || isDigit a)
+    nonFirstChar = P.satisfy (\a -> isDigit a)
+	
 pString :: Parser Expr
-pString = do
-  void $ lexeme $ char '\''
-  t <- many1 nonFirstChar
-  let word = t
-  if word `notElem` keywords
-    then return (String word)
-    else fail "String can't be a keyword"
+pString = lexeme $ do
+  h <- firstChar
+  t <- P.many nonFirstChar
+  if( last t == '\'') then return (String (init (tail (h:t))))
+                      else fail "Badly formed string"
   where
-    nonFirstChar = satisfy (\a -> isAscii  a) -- || a `elem` ["\'", "\"", "\n", "\t", "\\"] how to make it skip those signs?
+    firstChar = P.satisfy (\a -> a=='\'')
+    nonFirstChar = P.satisfy (\a -> isAscii  a) -- || a `elem` ["\'", "\"", "\n", "\t", "\\"] how to make it skip those signs?
+
 
 pTrue :: Parser Expr
 pTrue = do
@@ -222,6 +229,12 @@ pFunCall _ = fail "Function call wrong ident error"
 
 
 -- ------------ Utils -----------------------
+listToInt':: [Char] ->Int -> Int 
+listToInt' [] n = 0
+listToInt' (h:t) n = (10^(n-1) * digitToInt h ) + (listToInt' t (n-1))
+
+listToInt:: [Char] -> Int 
+listToInt l = listToInt' l (length l)
 
 pWord :: String -> Parser String
 pWord a = do
