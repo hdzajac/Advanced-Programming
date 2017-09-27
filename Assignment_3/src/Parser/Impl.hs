@@ -47,49 +47,94 @@ parseString = undefined
 
 -- ------------ EXPR Start ---------------------------
 
--- pExpr :: Parser Expr <- todo: change for refactored
--- pExpr = do
---   e0 <- try pExpr
---   void $ lexeme $ char ','
---   e1 <- pExpr
---   return (Comma e0 e1)
---   <|> 
---   do try pExpr1
+pExpr :: Parser Expr
+pExpr = 
+  try ( do
+    e0 <- pExpr1
+    e1 <- (pCommaExpr e0)
+    return e1 )
+  <|> 
+  do pExpr1
 
 pExpr1 :: Parser Expr
-pExpr1 = do
-  try pIdentOnly
+pExpr1 =
+  try ( do
+    e0 <- pExpr2
+    (pOperation e0))
   <|>
-  do try pAssignent
+  do pExpr2
+
+pOperation :: Expr -> Parser Expr
+pOperation e0 = do
+  void $ lexeme $ char '+'
+  e1 <- pExpr1
+  return (Call "+" [e0,e1])
   <|>
-  do try pFunCall
+  do
+    void $ lexeme $ char '-'
+    e1 <- pExpr1
+    return (Call "-" [e0,e1])
   <|>
-  do try pTerminal
+  do
+    void $ lexeme $ char '*'
+    e1 <- pExpr1
+    return (Call "*" [e0,e1])
+  <|>
+  do
+    void $ lexeme $ char '%'
+    e1 <- pExpr1
+    return (Call "%" [e0,e1])
+  <|>
+  do
+    void $ lexeme $ char '<'
+    e1 <- pExpr1
+    return (Call "<" [e0,e1])
+  <|>
+  do
+    void  $ lexeme $ string "==="
+    e1 <- pExpr1
+    return (Call "===" [e0,e1])
+
+
+pExpr2 :: Parser Expr
+pExpr2 = 
+  try ( do
+    i0 <- pIdent
+    (pFunCall i0))
+  <|>
+  try ( do
+    i0 <- pIdent
+    (pAssignent i0))  
+  <|>
+  try ( do
+    i0 <- pIdent
+    (pIdentOnly i0))  
+  <|>
+  do pTerminal
 
 pExprs :: Parser Expr
 pExprs = do
-  try pEmpty
-  <|>
-  do
-    e0 <- try pExpr1
-    (Array c0) <- pCommaExpr
-    return (Array (e0:c0))
-
-pEmpty :: Parser Expr
-pEmpty = do
-  void $ lexeme $ try eof
-  return (Array [])
-
-pCommaExpr :: Parser Expr
-pCommaExpr = do
-  try pEmpty
+  e0 <- try pExpr1
+  (Array c0) <- (pCommaExpr e0) 
+  return (Array (e0:c0))
   <|>
   do 
-    void $ try $ lexeme $ char ','
-    e0 <- try pExpr1
-    (Array c0) <- pCommaExpr
-    return (Array (e0:c0))
+    pEmpty (Array [])
 
+pEmpty :: Expr -> Parser Expr
+pEmpty e0 = return e0 
+
+pCommaExpr :: Expr -> Parser Expr
+pCommaExpr e0 = try ( do
+    void $ lexeme $ char ','
+    e1 <- pExpr1
+    e2 <- (pCommaExpr e1)
+    return (Comma e0 (Comma e1 e2)))
+  <|>
+  ( do
+    void $ lexeme $ char ','
+    e1 <- pExpr1
+    return (Comma e0 e1))
 
 
 -- ---------------  Terminal -----------------------
@@ -106,13 +151,6 @@ pTerminal = do
   <|>
   do try pUndefined
 
-pParen :: Parser Expr
-pParen = undefined
-
-pExpr1' :: Parser Expr
-pExpr1' = undefined
-
-
 
 -- Terminal -> Number | String | "true" | "false" | "undefined"
 
@@ -122,33 +160,29 @@ pNumber = do
   return (Number (read n))
 
 pString :: Parser Expr
-pString = lexeme $ do
-  h <- firstChar
-  t <- many nonFirstChar
-  let word = h:t
+pString = do
+  void $ lexeme $ char '\''
+  t <- many1 nonFirstChar
+  let word = t
   if word `notElem` keywords
     then return (String word)
     else fail "String can't be a keyword"
   where
-    firstChar = satisfy (\a -> isAscii a)
     nonFirstChar = satisfy (\a -> isAscii  a) -- || a `elem` ["\'", "\"", "\n", "\t", "\\"] how to make it skip those signs?
 
 pTrue :: Parser Expr
 pTrue = do
-  val <- pWord
-  guard (val == "true")
+  void $ lexeme $ string "true"
   return TrueConst
 
 pFalse :: Parser Expr
 pFalse = do
-  val <- pWord
-  guard (val == "false")
+  void $ lexeme $ string "false"
   return FalseConst
 
 pUndefined :: Parser Expr
 pUndefined = do
-  val <- pWord
-  guard (val == "undefined")
+  void $ lexeme $ string "undefined"
   return Undefined
 
 -- --------------------------------------------------------
@@ -158,44 +192,42 @@ pUndefined = do
 pIdent :: Parser Expr
 pIdent = lexeme $ do
   h <- firstChar
-  t <- many nonFirstChar
+  t <- lexeme $ many nonFirstChar
   let word = h:t
   if word `notElem` keywords
     then return (Var (h:t))
-    else fail "Identificator can't be a keyword"
+    else fail "Can't user keyword as identificator"
   where 
     firstChar = satisfy (\a -> isLetter a)
     nonFirstChar = satisfy (\a -> isDigit a || isLetter a || a == '_')
 
 
-pIdentOnly :: Parser Expr
-pIdentOnly = lexeme $ do
-  i0 <- try pIdent
-  void $ lexeme $ try eof
-  return i0
+pIdentOnly :: Expr -> Parser Expr
+pIdentOnly i0 = return i0
 
-pAssignent :: Parser Expr
-pAssignent = lexeme $ do
-  (Var i0) <- try pIdent
-  void $ try $ lexeme $ char '='
+pAssignent :: Expr -> Parser Expr
+pAssignent (Var i0) = lexeme $ do
+  void $ lexeme $ char '='
   e0 <- lexeme $ pExpr1
   return (Assign i0 e0)
+pAssignent _ = fail "error"
 
-pFunCall :: Parser Expr
-pFunCall = lexeme $ do
-  (Var i0) <- try pIdent
-  void $ try $ lexeme $ char '('
-  (Array e0) <- pExprs
+pFunCall :: Expr -> Parser Expr
+pFunCall (Var i0) = lexeme $ do
+  void $ lexeme $ char '('
+  (Array e0) <- lexeme $ pExprs
   void $ lexeme $ char ')'
   return (Call i0 e0)
+pFunCall _ = fail "Function call wrong ident error"
 
 
 -- ------------ Utils -----------------------
 
-pWord :: Parser String
-pWord = do
-  e0 <- lexeme $ many1 $ letters
-  return e0
+pWord :: String -> Parser String
+pWord a = do
+  word <- lexeme $ many1 $ letters
+  if word == a then return word
+    else fail "pWord Error"
   where
     letters = satisfy (\a -> isLetter a)
 
