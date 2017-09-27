@@ -8,16 +8,16 @@ import Text.Parsec
 
 
 n1 = parseWWS pExpr  "123    "
-n2 = parseWWS pExpr  "   231321123"
+n2 = parseWWS pExpr  "   2311123"
 n3 = parseWWS pExpr   "1"
 
 i1 = parseWWS pExpr  "name    ,second"
 i2 = parseWWS pExpr  "  n_321"
 i3 = parseWWS pExpr  "dsADS_123___"
 
-s1 = parseWWS pExpr  "'@DF!#!   "
-s2 = parseWWS pExpr  "'_!!  dsadeqw"
-s3 = parseWWS pExpr  "'==}'dsdsa22''222"
+s1 = parseWWS pExpr  "'@DF!#!   '"
+s2 = parseWWS pExpr  "'_!!  dsadeqw'"
+s3 = parseWWS pExpr  "'==}'dsdsa22''222'"
 -- s4 = parseWWS pString "true"
 
 t1 = parseWWS pExpr  "true"
@@ -39,7 +39,7 @@ o2 = parseWWS pExpr "a +b +b- 3"
 
 
 testn1 = TestCase $ assertEqual "Number 1" (Right (Number 123)) (n1)
-testn2 = TestCase $ assertEqual "Number 2" (Right (Number 231321123)) (n2)
+testn2 = TestCase $ assertEqual "Number 2" (Right (Number 2311123)) (n2)
 testn3 = TestCase $ assertEqual "Number 3" (Right (Number 1)) (n3)
 
 testi1 = TestCase $ assertEqual "Ident 1" (Right (Comma (Var "name") (Var "second"))) (i1)

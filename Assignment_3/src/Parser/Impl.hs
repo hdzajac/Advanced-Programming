@@ -96,37 +96,21 @@ pOperation e0 = do
     return (Call "===" [e0,e1])
 
 
---pExpr2 :: Parser Expr
---pExpr2 = 
---  try ( do
---    i0 <- pIdent
---    (pFunCall i0))
---  <|>
---  try ( do
---    i0 <- pIdent
---    (pAssignent i0))  
---  <|>
---  try ( do
---   i0 <- pIdent
---    (pIdentOnly i0))  
---  <|>
---  do pTerminal
 pExpr2 :: Parser Expr
 pExpr2 = 
-   do
+  try ( do
     i0 <- pIdent
-    (pFunCall i0)
+    (pFunCall i0))
   <|>
-   do
+  try ( do
     i0 <- pIdent
-    (pAssignent i0)
+    (pAssignent i0))  
   <|>
-  do
+    try ( do
     i0 <- pIdent
-    (pIdentOnly i0)
-  <|>
-  do pTerminal
-  
+    (pIdentOnly i0))  
+ <|>
+ do pTerminal
   
 pExprs :: Parser Expr
 pExprs = try ( do
@@ -193,14 +177,16 @@ pNumber :: Parser Expr
 pNumber = lexeme $ do
   h <- firstChar
   t <- many nonFirstChar
-  if (h=='-') then if ((length (h:t)) > 9) then fail "Number too large"
-                                           else return (Number (-1 * (listToInt (t))))
-              else if ((length (h:t)) > 8) then fail "Number too large"
-			                               else return (Number (listToInt (h:t)))
+  if (h=='-') then 
+    if ((length (h:t)) > 9) then fail "Number too large"
+      else return (Number (-1 * (listToInt (t))))
+      else if ((length (h:t)) > 8) then fail "Number too large"
+                else return (Number (listToInt (h:t)))
   where 
     firstChar = satisfy (\a -> a=='-' || isDigit a)
     nonFirstChar = satisfy (\a -> isDigit a)
-	
+
+
 pString :: Parser Expr
 pString = lexeme $ do
   h <- firstChar
@@ -265,7 +251,7 @@ pFunCall _ = fail "Function call wrong ident error"
 
 -- ------------ Utils -----------------------
 listToInt':: [Char] ->Int -> Int 
-listToInt' [] n = 0
+listToInt' [] _ = 0
 listToInt' (h:t) n = (10^(n-1) * digitToInt h ) + (listToInt' t (n-1))
 
 listToInt:: [Char] -> Int 
