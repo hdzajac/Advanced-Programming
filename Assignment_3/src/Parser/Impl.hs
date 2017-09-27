@@ -113,13 +113,32 @@ pExpr2 =
   do pTerminal
 
 pExprs :: Parser Expr
-pExprs = do
-  e0 <- try pExpr1
-  (Array c0) <- (pCommaExpr e0) 
-  return (Array (e0:c0))
+pExprs = try ( do
+    e0 <- pExpr1
+    (Array e1) <- pArguments 
+    return (Array (e0:e1)))
+  <|>
+  try (do
+    e0 <- pExpr1
+    return e0)
   <|>
   do 
     pEmpty (Array [])
+
+pArguments :: Parser Expr
+pArguments = try ( do
+    void $ lexeme $ char ','
+    e1 <- pExpr1
+    (Array e2) <- pArguments
+    return (Array (e1:e2)))
+  <|>
+  try ( do
+    void $ lexeme $ char ','
+    e1 <- pExpr1
+    return (Array [e1]))
+  <|>
+  do return (Array [])
+
 
 pEmpty :: Expr -> Parser Expr
 pEmpty e0 = return e0 
@@ -131,7 +150,7 @@ pCommaExpr e0 = try ( do
     e2 <- (pCommaExpr e1)
     return (Comma e0 (Comma e1 e2)))
   <|>
-  ( do
+  try ( do
     void $ lexeme $ char ','
     e1 <- pExpr1
     return (Comma e0 e1))

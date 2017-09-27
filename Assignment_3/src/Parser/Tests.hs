@@ -28,7 +28,7 @@ e1 = parseWWS pExpr  "x = 5"
 e2 = parseWWS pExpr  "x"
 e3 = parseWWS pExpr  "foo ( 12, 32, x)"
 
-fc1 = parseWWS pExpr "foo ( 3)"
+fc1 = parseWWS pExpr "foo ( 3, y , 123, 2)"
 
 es1 = parseWWS pExpr  "5,x"
 es2 = parseWWS pExpr  " 5 ,   x , 120,undefined"
@@ -59,7 +59,7 @@ teste1 = TestCase $ assertEqual "Expression 1" (Right (Assign "x" (Number 5))) (
 teste2 = TestCase $ assertEqual "Expression 2" (Right (Var "x")) (e2)
 teste3 = TestCase $ assertEqual "Expression 3" (Right (Call "foo"  [Number 12, Number 32, Var "x"])) (e3)
 
-testfc1 = TestCase $ assertEqual "Function Call 1" (Right (Call "foo"  [Number 12, Number 32, Var "x"])) (fc1)
+testfc1 = TestCase $ assertEqual "Function Call 1" (Right (Call "foo" [Number 3,Var "y",Number 123,Number 2])) (fc1)
 
 testes1 = TestCase $ assertEqual "Expressions 1" (Right (Comma (Number 5) (Var "x"))) (es1)
 testes2 = TestCase $ assertEqual "Expressions 2" (Right (Comma (Number 5) (Comma (Var "x") (Comma (Var "x") (Comma (Number 120) (Comma (Number 120) Undefined)))))) (es2)
