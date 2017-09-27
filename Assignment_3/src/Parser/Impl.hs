@@ -96,22 +96,38 @@ pOperation e0 = do
     return (Call "===" [e0,e1])
 
 
+--pExpr2 :: Parser Expr
+--pExpr2 = 
+--  try ( do
+--    i0 <- pIdent
+--    (pFunCall i0))
+--  <|>
+--  try ( do
+--    i0 <- pIdent
+--    (pAssignent i0))  
+--  <|>
+--  try ( do
+--   i0 <- pIdent
+--    (pIdentOnly i0))  
+--  <|>
+--  do pTerminal
 pExpr2 :: Parser Expr
 pExpr2 = 
-  try ( do
+   do
     i0 <- pIdent
-    (pFunCall i0))
+    (pFunCall i0)
   <|>
-  try ( do
+   do
     i0 <- pIdent
-    (pAssignent i0))  
+    (pAssignent i0)
   <|>
-  try ( do
+  do
     i0 <- pIdent
-    (pIdentOnly i0))  
+    (pIdentOnly i0)
   <|>
   do pTerminal
-
+  
+  
 pExprs :: Parser Expr
 pExprs = try ( do
     e0 <- pExpr1
@@ -174,20 +190,27 @@ pTerminal = do
 -- Terminal -> Number | String | "true" | "false" | "undefined"
 
 pNumber :: Parser Expr
-pNumber = do
-  n <- lexeme $ many1 digit
-  return (Number (read n))
-
+pNumber = lexeme $ do
+  h <- firstChar
+  t <- many nonFirstChar
+  if (h=='-') then if ((length (h:t)) > 9) then fail "Number too large"
+                                           else return (Number (-1 * (listToInt (t))))
+              else if ((length (h:t)) > 8) then fail "Number too large"
+			                               else return (Number (listToInt (h:t)))
+  where 
+    firstChar = satisfy (\a -> a=='-' || isDigit a)
+    nonFirstChar = satisfy (\a -> isDigit a)
+	
 pString :: Parser Expr
-pString = do
-  void $ lexeme $ char '\''
-  t <- many1 nonFirstChar
-  let word = t
-  if word `notElem` keywords
-    then return (String word)
-    else fail "String can't be a keyword"
+pString = lexeme $ do
+  h <- firstChar
+  t <- many nonFirstChar
+  if( last t == '\'') then return (String (init (tail (h:t))))
+                      else fail "Badly formed string"
   where
+    firstChar = satisfy (\a -> a=='\'')
     nonFirstChar = satisfy (\a -> isAscii  a) -- || a `elem` ["\'", "\"", "\n", "\t", "\\"] how to make it skip those signs?
+
 
 pTrue :: Parser Expr
 pTrue = do
@@ -241,6 +264,12 @@ pFunCall _ = fail "Function call wrong ident error"
 
 
 -- ------------ Utils -----------------------
+listToInt':: [Char] ->Int -> Int 
+listToInt' [] n = 0
+listToInt' (h:t) n = (10^(n-1) * digitToInt h ) + (listToInt' t (n-1))
+
+listToInt:: [Char] -> Int 
+listToInt l = listToInt' l (length l)
 
 pWord :: String -> Parser String
 pWord a = do
