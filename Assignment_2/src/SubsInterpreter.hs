@@ -116,24 +116,9 @@ less [StringVal s1,StringVal s2] = if s1 < s2 then Right TrueVal
 less _ = Left "Invalid comparison"
 
 
--- Not used to avoid error commented
--- -- gets the current environnment
--- getEnv :: SubsM Env
--- getEnv = SubsM (\(e0, _) -> return (e0,e0) )
-
--- setEnv :: Env -> SubsM Env
--- setEnv newEnv = SubsM (\(_, _) -> return (newEnv, newEnv))
-
--- -- -- should replace the variable environment with the result of applying f to it.
--- modifyEnv :: (Env -> Env) -> SubsM ()
--- modifyEnv f = SubsM (\(e0,_) ->  Right((),f e0))
-
-
 putVar :: Ident -> Value -> SubsM ()
 putVar name val = SubsM (\(e0,_) -> Right((), Map.insert name val e0))
 
-
--- should read the value of the variable i in the current environment
 getVar :: Ident -> SubsM Value
 getVar name =  SubsM (\(e0,_) -> case lookup name (Map.assocs e0) of
                                     Nothing -> Left ("unbound variable: "++name)
@@ -253,23 +238,4 @@ flatten (ArrayVal h:t) = flatten h ++ flatten t
 flatten (h:t) =  h : flatten t
 
 
--- something :: SubsM Value
--- something = do putVar "x" (IntVal 5)
---                env <- getEnv
---                putVar "x" (IntVal 10)
---                val  <- getVar "x"
---                setEnv env
---                val2 <- getVar "x"
---                return val2
--- main :: IO ()
--- main = do let result = case runSubsM something initialContext of
---                                   Left errMsg -> errMsg
---                                   Right (a,e) -> (show a)
---           putStrLn (show result)
 
-
-   -- Comma (Assign "x" (Number 0))
-   --          (Comma (Compr (ACFor "y"
-   --                               (Array [Number 1,Number 2,Number 3])
-   --                               (ACBody (Assign "x" (Var "y")))))
-   --                 (Var "x"))
