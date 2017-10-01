@@ -116,24 +116,9 @@ less [StringVal s1,StringVal s2] = if s1 < s2 then Right TrueVal
 less _ = Left "Invalid comparison"
 
 
--- Not used to avoid error commented
--- -- gets the current environnment
--- getEnv :: SubsM Env
--- getEnv = SubsM (\(e0, _) -> return (e0,e0) )
-
--- setEnv :: Env -> SubsM Env
--- setEnv newEnv = SubsM (\(_, _) -> return (newEnv, newEnv))
-
--- -- -- should replace the variable environment with the result of applying f to it.
--- modifyEnv :: (Env -> Env) -> SubsM ()
--- modifyEnv f = SubsM (\(e0,_) ->  Right((),f e0))
-
-
 putVar :: Ident -> Value -> SubsM ()
 putVar name val = SubsM (\(e0,_) -> Right((), Map.insert name val e0))
 
-
--- should read the value of the variable i in the current environment
 getVar :: Ident -> SubsM Value
 getVar name =  SubsM (\(e0,_) -> case lookup name (Map.assocs e0) of
                                     Nothing -> Left ("unbound variable: "++name)
