@@ -5,13 +5,7 @@ import Data.Char
 import Text.Parsec.String
 import Text.Parsec.Prim
 import Control.Monad
-import Text.Parsec (ParseError)
 import Text.Parsec
-
--- can change this if you want, but must be an instance of Show and Eq
-data CustomParseError = CustomParseError String
-                deriving (Show, Eq)
-
 
 
 keywords :: [String]
@@ -42,19 +36,24 @@ pWhitespaces = void $ many $ oneOf " \n\t"
 -- ---------------------------------------------------
 
 
-parseString :: String -> Either CustomParseError Expr
-parseString = undefined
+parseString :: String -> Either ParseError Expr
+parseString = parseWWS pStart
 
 -- ------------ EXPR Start ---------------------------
+
+pStart :: Parser Expr
+pStart = do
+  e0 <- pExpr
+  void $ eof
+  return e0
 
 pExpr :: Parser Expr
 pExpr = 
   try ( do
     e0 <- pExpr1
-    e1 <- (pCommaExpr e0)
-    return e1 )
+    pCommaExpr e0)
   <|> 
-  do pExpr1
+  pExpr1
 
 pExpr1 :: Parser Expr
 pExpr1 =
@@ -62,7 +61,7 @@ pExpr1 =
     e0 <- pExpr2
     (pOperation e0))
   <|>
-  do pExpr2
+  pExpr2
 
 pOperation :: Expr -> Parser Expr
 pOperation e0 = do
@@ -100,15 +99,14 @@ pExpr2 :: Parser Expr
 pExpr2 = 
   try ( do
     i0 <- pIdent
-    (pFunCall i0))
+    pFunCall i0)
   <|>
   try ( do
     i0 <- pIdent
-    (pAssignent i0))  
+    pAssignent i0)  
   <|>
-    try ( do
-    i0 <- pIdent
-    (pIdentOnly i0))  
+  do
+    try pIdent  
  <|>
   try ( do
     void $ lexeme $ char '['
@@ -131,7 +129,7 @@ pExpr2 =
     return e0
     )
  <|>
- do pTerminal
+ pTerminal
   
 pExprs :: Parser Expr
 pExprs = try ( do
@@ -139,11 +137,8 @@ pExprs = try ( do
     (Array e1) <- pArguments 
     return (Array (e0:e1)))
   <|>
-  try (do
-    e0 <- pExpr1
-    return e0)
+    try pExpr1
   <|>
-  do 
     pEmpty (Array [])
 
 pArguments :: Parser Expr
@@ -153,28 +148,54 @@ pArguments = try ( do
     (Array e2) <- pArguments
     return (Array (e1:e2)))
   <|>
-  try ( do
-    void $ lexeme $ char ','
-    e1 <- pExpr1
-    return (Array [e1]))
-  <|>
-  do return (Array [])
+    return (Array [])
 
 
 pEmpty :: Expr -> Parser Expr
-pEmpty e0 = return e0 
+pEmpty = return
 
 pCommaExpr :: Expr -> Parser Expr
 pCommaExpr e0 = try ( do
     void $ lexeme $ char ','
-    e1 <- pExpr1
-    e2 <- (pCommaExpr e1)
-    return (Comma e0 (Comma e1 e2)))
+    e1 <- pExpr
+    return (Comma e0 e1))
   <|>
   try ( do
     void $ lexeme $ char ','
     e1 <- pExpr1
     return (Comma e0 e1))
+
+
+-- -------------- Operations -------------------
+
+
+pRelationOp :: Parser Expr
+pRelationOp = pSubSumOp `chainl1` pCompOp
+
+pSubSumOp :: Parser Expr
+pSubSumOp = pTerm `chainl1` pAddOp
+
+pTerm :: Parser Expr
+pTerm = pExpr2 `chainl1` pMulOp
+
+pCompOp :: Parser (Expr -> Expr -> Expr)
+pCompOp = do 
+  a <- lexeme (string "===" <|> string "<")
+  return (functionCall a)
+
+
+pAddOp :: Parser (Expr -> Expr -> Expr)
+pAddOp = do 
+  a <- lexeme (string "+" <|> string "-")
+  return (functionCall a)
+
+pMulOp :: Parser (Expr -> Expr -> Expr)
+pMulOp = do 
+  a <- lexeme (string "*" <|> string "%")
+  return (functionCall a)
+
+functionCall :: String->Expr -> Expr -> Expr
+functionCall s e1 e2 = Call s [e1,e2]
 
 
 -- ---------------  Terminal -----------------------
@@ -183,40 +204,52 @@ pTerminal :: Parser Expr
 pTerminal = do
   try pNumber 
   <|>
-  do try pString
+    try pString
   <|>
-  do try pTrue
+    try pTrue
   <|>
-  do try pFalse
+    try pFalse
   <|>
-  do try pUndefined
+    pUndefined
 
 
 -- Terminal -> Number | String | "true" | "false" | "undefined"
 
 pNumber :: Parser Expr
-pNumber = 
-  try (do t <- (lexeme $ many1 digit) 
+pNumber =
+  try (do t <- (lexeme $ many1 digit)
           notFollowedBy (char '.')
-          if ((length t) > 8) then fail "Number too large"
+          if length t > 8 then fail "Number too large"
                               else return (Number (listToInt (t))))
   <|>
-  do h <- char '-'
+  do _ <- char '-'
      t <- (lexeme $ many1 digit)
      notFollowedBy (char '.')
-     if ((length t) > 8) then fail "Number too large"
+     if length t > 8 then fail "Number too large"
                          else return (Number (-1 * (listToInt (t))))
 
 
 pString :: Parser Expr
 pString = lexeme $ do
-  h <- firstChar
-  t <- many nonFirstChar
-  if( last t == '\'') then return (String (init (tail (h:t))))
-                      else fail "Badly formed string"
-  where
-    firstChar = satisfy (\a -> a=='\'')
-    nonFirstChar = satisfy (\a -> isAscii  a) -- || a `elem` ["\'", "\"", "\n", "\t", "\\"] how to make it skip those signs?
+  void $ char '\''
+  pString1 ""
+
+
+pString1 :: String -> Parser Expr
+pString1 c0 = do
+  void $ try $ char '\\'
+  pEscape c0
+  <|> do
+    void $ try $ char '\''
+    return (String c0)
+  <|> do
+    c1 <- anyChar
+    pString1 (c0 ++ [c1])
+
+pEscape :: String -> Parser Expr
+pEscape c0 = do
+  c1 <- try $ oneOf "t\\n\'"
+  pString1 (c0 ++ [c1])
 
 
 pTrue :: Parser Expr
@@ -278,7 +311,8 @@ pArrayFor = do
   void $ lexeme $ try $ string "for"
   void $ lexeme $ char '('
   (Var i0) <- pIdent
-  void $ lexeme $ string "of"
+  void $ string "of"
+  void $ many1 $ oneOf " \n\t"
   e0 <- pExpr1
   void $ lexeme $ char ')'
   a0 <- pArrayCompr
@@ -286,7 +320,8 @@ pArrayFor = do
 
 pArrayIf :: Parser ArrayCompr
 pArrayIf = do
-  void $ lexeme $ try $ string "if"
+  void $ try $ string "if"
+  void $ many1 $ oneOf " \n\t"
   void $ lexeme $ char '('
   e0 <- pExpr1
   void $ lexeme $ char ')'
@@ -306,9 +341,6 @@ pArrayCompr =
   do try pArrayIf
 
 
-
-
-
 -- ------------ Utils -----------------------
 listToInt':: [Char] ->Int -> Int 
 listToInt' [] _ = 0
@@ -323,7 +355,4 @@ pWord a = do
   if word == a then return word
     else fail "pWord Error"
   where
-    letters = satisfy (\a -> isLetter a)
-
--- pIdentOnly :: Parser String -- todo Finish
--- pIdentOnly = undefined
+    letters = satisfy (\x -> isLetter x)

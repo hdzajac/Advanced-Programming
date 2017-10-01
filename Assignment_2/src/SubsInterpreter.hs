@@ -236,6 +236,3 @@ flatten :: [Value] -> [Value]
 flatten [] = []
 flatten (ArrayVal h:t) = flatten h ++ flatten t
 flatten (h:t) =  h : flatten t
-
-
-
