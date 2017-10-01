@@ -251,25 +251,3 @@ flatten :: [Value] -> [Value]
 flatten [] = []
 flatten (ArrayVal h:t) = flatten h ++ flatten t
 flatten (h:t) =  h : flatten t
-
-
--- something :: SubsM Value
--- something = do putVar "x" (IntVal 5)
---                env <- getEnv
---                putVar "x" (IntVal 10)
---                val  <- getVar "x"
---                setEnv env
---                val2 <- getVar "x"
---                return val2
--- main :: IO ()
--- main = do let result = case runSubsM something initialContext of
---                                   Left errMsg -> errMsg
---                                   Right (a,e) -> (show a)
---           putStrLn (show result)
-
-
-   -- Comma (Assign "x" (Number 0))
-   --          (Comma (Compr (ACFor "y"
-   --                               (Array [Number 1,Number 2,Number 3])
-   --                               (ACBody (Assign "x" (Var "y")))))
-   --                 (Var "x"))
