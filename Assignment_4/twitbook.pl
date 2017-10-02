@@ -20,6 +20,15 @@ inGraph(X,[person(X,[_|_])|_]).
 inGraph(X,[person(_,_)|T]):-
     inGraph(X,T).
 
+% Succeeds if X is someone's friend in the graph G
+% inList(X,G)
+
+inList(X,[person(_,[X|_])|_]).
+inList(X,[person(_,[_|T])|T1]):-
+    inList(X,[person(_,T)|T1]).
+inList(X,[person(_,[])|T1]):-
+    inList(X,T1).
+
 %----------------------------------$
 
 
@@ -99,7 +108,9 @@ friendly1(G,[person(_,[])|T2],X,F):-
 friendly1(G,[person(P,[H|T])|T2],X,F):-
     different(G,H,X),
     friendly1(G,[person(P,T)|T2],X,F).
-friendly(G,X):-friendly1(G,G,X,0).
+friendly(G,X):-
+    inList(X,G),
+    friendly1(G,G,X,0).
 
 % X is hostile if X dislikes everyone who dislikes him/her
 % hostile(G,X) succeeds if X is hostile in G
@@ -116,5 +127,7 @@ hostile1(G,[person(_,[])|T2],X,F):-
 hostile1(G,[person(P,[H|T])|T2],X,F):-
     different(G,H,X),
     hostile1(G,[person(P,T)|T2],X,F).
-hostile(G,X):-hostile1(G,G,X,0).
+hostile(G,X):-
+    inList(X,G),
+    hostile1(G,G,X,0).
 
