@@ -130,4 +130,15 @@ hostile1(G,[person(P,[H|T])|T2],X,F):-
 hostile(G,X):-
     inList(X,G),
     hostile1(G,G,X,0).
+% X admires Y if
+%                X likes Y or
+%                X like someone who admires Y - recursion here
+% X admires Y if there is a chain of likes from X to Y
+% admires(G,X,Y) succeeds if X admires Y in G
+
+admires(G,X,Y):-
+    likes(G,X,Y).
+admires(G,X,Y):-
+    likes(G,X,Z),
+    admires(G,Z,Y).
 

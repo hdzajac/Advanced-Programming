@@ -108,7 +108,9 @@ friendly1(G,[person(_,[])|T2],X,F):-
 friendly1(G,[person(P,[H|T])|T2],X,F):-
     different(G,H,X),
     friendly1(G,[person(P,T)|T2],X,F).
-friendly(G,X):-friendly1(G,G,X,0).
+friendly(G,X):-
+    inList(X,G),
+    friendly1(G,G,X,0).
 
 % X is hostile if X dislikes everyone who dislikes him/her
 % hostile(G,X) succeeds if X is hostile in G
@@ -126,6 +128,17 @@ hostile1(G,[person(P,[H|T])|T2],X,F):-
     different(G,H,X),
     hostile1(G,[person(P,T)|T2],X,F).
 hostile(G,X):-
-
+    inList(X,G),
     hostile1(G,G,X,0).
+% X admires Y if
+%                X likes Y or
+%                X like someone who admires Y - recursion here
+% X admires Y if there is a chain of likes from X to Y
+% admires(G,X,Y) succeeds if X admires Y in G
+
+admires(G,X,Y):-
+    likes(G,X,Y).
+admires(G,X,Y):-
+    likes(X,Z),
+    admires(G,Z,Y).
 
