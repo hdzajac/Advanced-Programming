@@ -29,6 +29,15 @@ inList(X,[person(_,[_|T])|T1]):-
 inList(X,[person(_,[])|T1]):-
     inList(X,T1).
 
+% Removes X from graph and returns new Graph in last argument
+% Remove (G, X, G1)
+
+remove([],_,_).
+remove([person(X,_)|T], X, G):-
+    remove(T,X,G).
+remove([H|T], X, G):-
+    remove(T,X,[H|G]).
+
 %----------------------------------$
 
 
@@ -130,15 +139,30 @@ hostile1(G,[person(P,[H|T])|T2],X,F):-
 hostile(G,X):-
     inList(X,G),
     hostile1(G,G,X,0).
+
+
 % X admires Y if
 %                X likes Y or
 %                X like someone who admires Y - recursion here
 % X admires Y if there is a chain of likes from X to Y
 % admires(G,X,Y) succeeds if X admires Y in G
 
+% because we need to remove the compared element from the list, we build
+% another graph from the skipped elements - first argument.
+%
+% there is a problem though :) next comment
+
+admires1(_,_,X,X).
+admires1(G,[person(X, [H|_])| T2], X, Y):-
+    admires1(G,[T2|G], H, Y).
+admires1(G,[person(X, [_|T])| T2], X, Y):-
+    admires1(G,[person(X,T) |T2], X, Y).
+admires1(G,[H|T],X,Y):-
+    different([H|T],H,X), % doesn't work because the graph sometimes is split and contains only X or only H, either different "different" or concaat G and [H|T] [G|[H|T]] doesn't work -> [[a,b]| c,d]
+    admires1([H|G],T,X,Y).
+admires1(G,[_|T],X,Y):-
+    admires1(G,T,X,Y).
+
 admires(G,X,Y):-
-    likes(G,X,Y).
-admires(G,X,Y):-
-    likes(X,Z),
-    admires(G,Z,Y).
+    admires1([],G,X,Y).
 
