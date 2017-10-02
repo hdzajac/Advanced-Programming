@@ -83,10 +83,10 @@ outcast1(G,[_|T1],X):-
     outcast1(G,T1,X).
 outcast(G, X):-
     outcast1(G,G,X).
+
+
 % X is said to be friendly if X likes back everyone who likes him/her.
 % friendly(G, X) that succeeds whenever X is friendly in G.
-
-friendly2([]).
 
 friendly1(_,[],_,0).
 friendly1(G,[person(P,[X|_])|T2],X,F):-
@@ -100,4 +100,21 @@ friendly1(G,[person(P,[H|T])|T2],X,F):-
     different(G,H,X),
     friendly1(G,[person(P,T)|T2],X,F).
 friendly(G,X):-friendly1(G,G,X,0).
+
+% X is hostile if X dislikes everyone who dislikes him/her
+% hostile(G,X) succeeds if X is hostile in G
+
+
+hostile1(_,[],_,0).
+hostile1(G,[person(P,[X|_])|T2],X,F):-
+    dislikes(G,X,P),
+    hostile1(G,T2,X,F).
+hostile1(G,[person(_,[X|_])|T],X,_):-
+    hostile1(G,T,X,1).
+hostile1(G,[person(_,[])|T2],X,F):-
+    hostile1(G,T2,X,F).
+hostile1(G,[person(P,[H|T])|T2],X,F):-
+    different(G,H,X),
+    hostile1(G,[person(P,T)|T2],X,F).
+hostile(G,X):-hostile1(G,G,X,0).
 
