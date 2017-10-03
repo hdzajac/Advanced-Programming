@@ -220,23 +220,77 @@ myFindall(G,[person(P,_)|T],X,L,R):-
 myFindall(G,[person(_,_)|T],X,L,R):-
     myFindall(G,T,X,L,R).
 
-findallAdmires(G,X,R):-
-    myFindall(G,G,X,[],R).
 
-checkInAdmirers(G,[person(P,_)|T],X,Y,AL):-
-    differentInListOne(G,AL,P),
-    checInAdmireres(G,T,X,Y,AL).
-checkInAdmirers(G,[person(P,_)|T],X,Y,AL):-
+
+
+
+myFindall1(_,[],_,[]).
+myFindall1(G,[person(P,_)|T],X,[P|L]):-
     admires(G,X,P),
-    checInAdmireres(G,T,X,Y,AL).
+    myFindall1(G,T,X,L).
+myFindall1(G,[person(_,_)|T],X,L):-
+    myFindall1(G,T,X,L).
 
-indifferent2(G,(person(X,[_|_]|T),AL,X,Y):-
-    findallAdmires(G,X,[X|AL]),
-    checkInAdmirers(G,G,X,Y,[X|AL]
-    indifferent2(G,T,[X|AL],X,Y).
+findallAdmires(G,X,R):-
+    myFindall1(G,G,X,R).
+
+ind(G,[],Visited,_,Y,AL):-
+    differentInListOne(G,AL,Y),
+    differentInListOne(G,Visited,Y).
+
+
+ind(G,[person(P,_)|T],Visited,X,Y,AL):-
+    admires(G,X,P),
+    ind(G,T,[P|Visited],X,Y,[P|AL]).
+
+ind(G,[person(P,_)|T],Visited,X,Y,AL):-
+    differentInListOne(G,Visited,P),
+    differentInListOne(G,AL,P),
+    ind(G,T,Visited,X,Y,AL).
 
 indifferent(G,X,Y):-
-    indifferent2(G,X,Y).
+    ind(G,G,[],X,Y,[]).
+
+append1([],L,L).
+
+append1([H|T],L,[H|T1]):-
+	append1(T,L,T1).
+
+
+
+
+bfs(G,_,Visited,[],_,Y):-
+    differentInListOne(G,Visited,Y).
+
+bfs(G,[person(ToVisitH,[])|_],Visited,[ToVisitH|ToVisitT],X,Y):-
+    differentInListOne(G,Visited,ToVisitH),
+    bfs(G,G,[ToVisitH|Visited],ToVisitT,X,Y).
+
+
+bfs(G,[person(ToVisitH,[H|[]])|_],Visited,[ToVisitH|ToVisitT],X,Y):-
+    differentInListOne(G,ToVisitT,H),
+    differentInListOne(G,Visited,H),
+    differentInListOne(G,Visited,ToVisitH),
+    append1(ToVisitT,[H],R),
+    bfs(G,G,[ToVisitH|Visited],R,X,Y).
+
+
+bfs(G,[person(ToVisitH,[H|T])|T1],Visited,[ToVisitH|ToVisitT],X,Y):-
+    differentInListOne(G,ToVisitT,H),
+    differentInListOne(G,Visited,H),
+    append1(ToVisitT,[H],R),
+    bfs(G,[person(ToVisitH,T)|T1],Visited,R,X,Y).
+
+bfs(G,[person(ToVisitH,[_|T])|T1],Visited,ToVisit,X,Y):- %
+    bfs(G,[person(ToVisitH,T)|T1],Visited,ToVisit,X,Y).
+
+bfs(G,[_|T],Visited,ToVisit,X,Y):-
+    bfs(G,T,Visited,ToVisit,X,Y).
+
+bfsStart(G,X,Y):-
+    bfs(G,G,[],[X],X,Y).
+
+
 
 
 
