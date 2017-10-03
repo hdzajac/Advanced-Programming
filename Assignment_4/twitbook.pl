@@ -87,6 +87,17 @@ different([person(_,_)|T],X,Y):-
     different(T,X,Y).
 
 
+% succeeds if Y is not in the list of friends
+
+notLikes1(_,[person(X,[])|_],X,_).
+notLikes1(G,[person(X,[H|T])|T1],X,Y):-
+    different(G,H,Y),
+    notLikes1(G,[person(X,T)|T1],X,Y).
+notLikes1(G,[_|T1],X,Y):-
+    notLikes1(G,T1,X,Y).
+
+notLikes(G,X,Y):- notLikes1(G,G,X,Y).
+
 % X dislikes Y if
 %            Y likes X
 %            X does not like Y
@@ -201,10 +212,43 @@ admires(G,X,Y):-
 % I think the only way to represent indifferent is through a disjoint
 % set formed of admires and the rest of the elements in the graph. I
 % cannot find a logical equivalence.
-indifferent2(G,X,Y,_):-
-    admires(G,X,Z),
-    differentInListOne(G,[Z],Y).
+
+myFindall(_,[],_,R,R).
+myFindall(G,[person(P,_)|T],X,L,R):-
+    admires(G,X,P),
+    myFindall(G,T,X,[P|L],R).
+myFindall(G,[person(_,_)|T],X,L,R):-
+    myFindall(G,T,X,L,R).
+
+findallAdmires(G,X,R):-
+    myFindall(G,G,X,[],R).
+
+checkInAdmirers(G,[person(P,_)|T],X,Y,AL):-
+    differentInListOne(G,AL,P),
+    checInAdmireres(G,T,X,Y,AL).
+checkInAdmirers(G,[person(P,_)|T],X,Y,AL):-
+    admires(G,X,P),
+    checInAdmireres(G,T,X,Y,AL).
+
+indifferent2(G,(person(X,[_|_]|T),AL,X,Y):-
+    findallAdmires(G,X,[X|AL]),
+    checkInAdmirers(G,G,X,Y,[X|AL]
+    indifferent2(G,T,[X|AL],X,Y).
 
 indifferent(G,X,Y):-
-    indifferent2(G,X,Y,[]).
+    indifferent2(G,X,Y).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
