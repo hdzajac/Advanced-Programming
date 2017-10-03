@@ -9,10 +9,35 @@ person(oliver,[kara]).
 isPerson(X):-
     person(X,_).
 
+
+%----------- UTILS----------------%
+
 isMember(M,[M|_]).
 isMember(M,[_|T]):- isMember(M,T).
 
-%----------- UTILS----------------%
+% succeeds if all elements of the list L are different
+% elements in the graph g
+% differentInList(G,L).
+%
+
+differentInListOne(_,[],_).
+differentInListOne(G,[H|T],E):-
+    different(G,E,H),
+    differentInListOne(G,T,E).
+
+differentInList(_,[_|[]]).
+differentInList(G,[H|T]):-
+    differentInListOne(G,T,H),
+    differentInList(G,T).
+
+
+equals(X,X).
+
+duplicate([H|T],X):-
+    equals(H,X),
+    isMember(X,T).
+duplicate([_|T],X):- duplicate(T,X).
+
 
 % Succeeds if X is a person in the graph G
 % inGraph(X,G)
@@ -38,6 +63,9 @@ remove([person(X,_)|T], X, G):-
 remove([H|T], X, G):-
     remove(T,X,[H|G]).
 
+
+
+
 %----------------------------------$
 
 
@@ -49,7 +77,7 @@ likes([person(X,[_|T])|T1],X,Y):-
 likes([_|T],X,Y):-
     likes(T,X,Y).
 
-% Succeeds if X and Y different members of the graph
+% Succeeds if X and Y different members of the graph G
 % different(G,X,Y)
 different([person(X,[_|_])|T],X,Y):-
     inGraph(Y,T).
@@ -146,23 +174,36 @@ hostile(G,X):-
 %                X like someone who admires Y - recursion here
 % X admires Y if there is a chain of likes from X to Y
 % admires(G,X,Y) succeeds if X admires Y in G
-
-% because we need to remove the compared element from the list, we build
-% another graph from the skipped elements - first argument.
 %
-% there is a problem though :) next comment
 
-admires1(_,_,X,X).
-admires1(G,[person(X, [H|_])| T2], X, Y):-
-    admires1(G,[T2|G], H, Y).
-admires1(G,[person(X, [_|T])| T2], X, Y):-
-    admires1(G,[person(X,T) |T2], X, Y).
-admires1(G,[H|T],X,Y):-
-    different([H|T],H,X), % doesn't work because the graph sometimes is split and contains only X or only H, either different "different" or concaat G and [H|T] [G|[H|T]] doesn't work -> [[a,b]| c,d]
-    admires1([H|G],T,X,Y).
-admires1(G,[_|T],X,Y):-
-    admires1(G,T,X,Y).
+
+admires2(G,X,Y,R):-
+    differentInList(G,[Y|R]),
+    likes(G,X,Y).
+admires2(G,X,Y,R):-
+    likes(G,X,Z),
+    differentInList(G,[Z|R]),
+    admires2(G,Z,Y,[Z|R]).
 
 admires(G,X,Y):-
-    admires1([],G,X,Y).
+    admires2(G,X,Y,[X]).
+
+
+
+% X is indifferent to some other person Y if X does not admire Y,
+% That is there is no link of likes from X to Y
+% Succeeds if X is indifferent to Y
+% indifferent(G, X, Y)
+
+
+find(X, Loa) :- find(X, [], Loa).
+find(X,E,L,R):-admires(G,Y,Z
+find(_, Acc, Acc).
+
+indifferent2(G,X,Y,_):-
+    admires(G,X,Z),
+    differentInListOne(G,[Z],Y).
+
+indifferent(G,X,Y):-
+    indifferent2(G,X,Y,[]).
 
