@@ -269,7 +269,6 @@ bfs(G,[person(ToVisitH,[])|_],Visited,[ToVisitH|ToVisitT],X,Y):-
 
 bfs(G,[person(ToVisitH,[H|[]])|_],Visited,[ToVisitH|ToVisitT],X,Y):-
     differentInListOne(G,ToVisitT,H),
-    differentInListOne(G,Visited,H),
     differentInListOne(G,Visited,ToVisitH),
     append1(ToVisitT,[H],R),
     bfs(G,G,[ToVisitH|Visited],R,X,Y).
@@ -277,12 +276,11 @@ bfs(G,[person(ToVisitH,[H|[]])|_],Visited,[ToVisitH|ToVisitT],X,Y):-
 
 bfs(G,[person(ToVisitH,[H|T])|T1],Visited,[ToVisitH|ToVisitT],X,Y):-
     differentInListOne(G,ToVisitT,H),
-    differentInListOne(G,Visited,H),
     append1([ToVisitH|ToVisitT],[H],R),
     bfs(G,[person(ToVisitH,T)|T1],Visited,R,X,Y).
 
-bfs(G,[person(ToVisitH,[_|T])|T1],Visited,[ToVisitH|ToVisit],X,Y):- %
-    bfs(G,[person(ToVisitH,T)|T1],Visited,[ToVisitH|ToVisit],X,Y).
+bfs(G,[person(ToVisitH,[H|T])|T1],Visited,[ToVisitH|ToVisit],X,Y):- %
+    bfs(G,[person(ToVisitH,T)|T1],[H|Visited],[ToVisitH|ToVisit],X,Y).
 
 bfs(G,[_|T],Visited,[ToVisitH|ToVisitT],X,Y):-
     bfs(G,T,Visited,[ToVisitH|ToVisitT],X,Y).
