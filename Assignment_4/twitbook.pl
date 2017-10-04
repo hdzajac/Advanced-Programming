@@ -9,6 +9,24 @@ person(oliver,[kara]).
 isPerson(X):-
     person(X,_).
 
+% returns list of persons from a graph
+listOfPersons([],[]).
+listOfPersons([person(X,_)|T],[X|R]):-
+    listOfPersons(T,R).
+
+
+% subgoal and satisfy - subgoal that M is member of L1 and
+% satisfies only if M is also member of L2
+overlap(L1,L2):- isMember(M,L1), isMember(M,L2).
+
+%succeeds if L1 is included in L2
+%incusion(L1,L2).
+inclusion([],_).
+inclusion([H|T],L):-
+    isMember(H,L),
+    inclusion(T,L).
+
+
 
 %----------- UTILS----------------%
 
@@ -259,50 +277,114 @@ append1([H|T],L,[H|T1]):-
 
 
 
-bfs(G,_,Visited,[],_,Y):-
+%bfs(G,G',Visited,ToVi
+bfs(G,_,Visited,[],_,Y,Visited):-
     differentInListOne(G,Visited,Y).
 
-bfs(G,[person(ToVisitH,[])|_],Visited,[ToVisitH|ToVisitT],X,Y):-
+
+bfs(G,[person(ToVisitH,[])|_],Visited,[ToVisitH|[]],X,Y,R):-
     differentInListOne(G,Visited,ToVisitH),
-    bfs(G,G,[ToVisitH|Visited],ToVisitT,X,Y).
+    bfs(G,G,[ToVisitH|Visited],[],X,Y,R).
 
 
-bfs(G,[person(ToVisitH,[H|[]])|_],Visited,[ToVisitH|ToVisitT],X,Y):-
+bfs(G,[person(ToVisitH,[])|_],Visited,[ToVisitH|ToVisitT],X,Y,R):-
+    differentInListOne(G,Visited,ToVisitH),
+    bfs(G,G,[ToVisitH|Visited],ToVisitT,X,Y,R).
+
+
+bfs(G,[person(ToVisitH,[H|[]])|_],Visited,[ToVisitH|ToVisitT],X,Y,R):-
     differentInListOne(G,ToVisitT,H),
     differentInListOne(G,Visited,H),
     differentInListOne(G,Visited,ToVisitH),
-    append1(ToVisitT,[H],R),
-    bfs(G,G,[ToVisitH|Visited],R,X,Y).
+    append1(ToVisitT,[H],R1),
+    bfs(G,G,[ToVisitH|Visited],R1,X,Y,R).
+
+bfs(G,[person(ToVisitH,[H|[]])|T],Visited,[ToVisitH|[]],X,Y,R):-
+    isMember(H,Visited),
+    bfs(G,T,[ToVisitH|Visited],[],X,Y,R).
 
 
-bfs(G,[person(ToVisitH,[H|T])|T1],Visited,[ToVisitH|ToVisitT],X,Y):-
+bfs(G,[person(ToVisitH,[H|T])|T1],Visited,[ToVisitH|ToVisitT],X,Y,R):-
     differentInListOne(G,ToVisitT,H),
     differentInListOne(G,Visited,H),
-    append1([ToVisitH|ToVisitT],[H],R),
-    bfs(G,[person(ToVisitH,T)|T1],Visited,R,X,Y).
+    append1([ToVisitH|ToVisitT],[H],R1),
+    bfs(G,[person(ToVisitH,T)|T1],[ToVisitH|Visited],R1,X,Y,R).
 
-bfs(G,[person(ToVisitH,[_|T])|T1],Visited,[ToVisitH|ToVisit],X,Y):- %
-    bfs(G,[person(ToVisitH,T)|T1],Visited,[ToVisitH|ToVisit],X,Y).
+bfs(G,[person(ToVisitH,[H|T])|T1],Visited,[ToVisitH|ToVisit],X,Y,R):- %
+    notLikes(G,ToVisitH,Y),
+    bfs(G,[person(ToVisitH,T)|T1],[H|Visited],[ToVisitH|ToVisit],X,Y,R).
 
-bfs(G,[_|T],Visited,[ToVisitH|ToVisitT],X,Y):-
-    bfs(G,T,Visited,[ToVisitH|ToVisitT],X,Y).
-
-bfsStart(G,X,Y):-
-    bfs(G,G,[],[X],X,Y).
+bfs(G,[person(P,_)|T],Visited,[ToVisitH|ToVisitT],X,Y,R):-
+    bfs(G,T,[P|Visited],[ToVisitH|ToVisitT],X,Y,R).
 
 
 
 
+bfsStart(G,X,Y,R):-
+    bfs(G,G,[],[X],X,Y,R).
 
 
 
 
+%!
+% same world succeeds if G,H describe the same graph
+% A returns a list of for each person in G who H is
+% same_world(G, H, A)
+%[(kara,supergirl),(bruce,batman),(barry,flash),(clark,superman),(oliver,green_arrow)]
+%
+place(E,L,[E|L]).
+place(E,[H|T],[H|R]):-
+	place(E,T,R).
+perm([],[]).
+perm([H|T],R):-
+	perm(T,L),
+	place(H,L,R).
+
+makeTupleList([],[],[]).
+makeTupleList([H1|T1],[H2|T2],[(H1,H2)|R]):-
+    makeTupleList(T1,T2,R).
+
+makeTuplePerm(L1,L2,R):-
+    perm(L1,R1),
+    perm(L2,R2),
+    makeTupleList(R1,R2,R).
 
 
+getEquiv(E,[(E,Q)|_],Q).
+getEquiv(E,[(_,_)|T],R):-
+    getEquiv(E,T,R).
+
+transformList([],_,[]).
+transformList([L1|T],TL,[L2|R]):-
+    getEquiv(L1,TL,L2),
+    transformList(T,TL,R).
 
 
+transformGraph([],_,[]).
+transformGraph([person(GH,GL)|GT],TL,[person(MH,HL)|Res]):-
+               getEquiv(GH,TL,MH),
+               transformList(GL,TL,HL),
+               transformGraph(GT,TL,Res).
 
 
+getLikesOfPerson([person(P,L)|_],P,L).
+getLikesOfPerson([person(_,_)|T],P,R):-
+    getLikesOfPerson(T,P,R).
 
 
+checkWorld([],_).
+checkWorld([person(X,GL1)|GT1],H):-
+    getLikesOfPerson(H,X,L),
+    inclusion(GL1,L),
+    inclusion(L,GL1),
+    checkWorld(GT1,H).
 
+
+sameWorld1(G,H,GL,HL,A):-
+    makeTuplePerm(GL,HL,A),
+    transformGraph(G,A,GH),
+    checkWorld(GH,H).
+same_world(G,H,A):-
+    listOfPersons(G,GL),
+    listOfPersons(H,HL),
+    sameWorld1(G,H,GL,HL,A).
