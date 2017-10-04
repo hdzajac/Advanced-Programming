@@ -97,14 +97,17 @@ likes([_|T],X,Y):-
 
 % Succeeds if X and Y different members of the graph G
 % different(G,X,Y)
-different([person(X,[_])|T],X,Y,Acc):-
+different1([person(X,_)|T],X,Y,Acc):-
     append1(T,Acc,R),
     inGraph(Y,R).
-different([person(Y,[_])|T],X,Y,Acc):-
+different1([person(Y,_)|T],X,Y,Acc):-
     append1(T,Acc,R),
     inGraph(X,R).
+different1([person(P,_)|T],X,Y,Acc):-
+    different1(T,X,Y,[P|Acc]).
+
 different(G,X,Y):-
-    different(G,X,Y,[]).
+    different1(G,X,Y,[]).
 
 
 % succeeds if Y is not in the list of friends
