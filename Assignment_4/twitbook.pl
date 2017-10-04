@@ -59,8 +59,8 @@ duplicate([_|T],X):- duplicate(T,X).
 
 % Succeeds if X is a person in the graph G
 % inGraph(X,G)
-inGraph(X,[person(X,[_|_])|_]).
-inGraph(X,[person(_,_)|T]):-
+inGraph(X,[person(X,_)|_]).
+inGraph(X,[_|T]):-
     inGraph(X,T).
 
 % Succeeds if X is someone's friend in the graph G
@@ -97,12 +97,14 @@ likes([_|T],X,Y):-
 
 % Succeeds if X and Y different members of the graph G
 % different(G,X,Y)
-different([person(X,[_|_])|T],X,Y):-
-    inGraph(Y,T).
-different([person(Y,[_|_])|T],X,Y):-
-    inGraph(X,T).
-different([person(_,_)|T],X,Y):-
-    different(T,X,Y).
+different([person(X,[_])|T],X,Y,Acc):-
+    append1(T,Acc,R),
+    inGraph(Y,R).
+different([person(Y,[_])|T],X,Y,Acc):-
+    append1(T,Acc,R),
+    inGraph(X,R).
+different(G,X,Y):-
+    different(G,X,Y,[]).
 
 
 % succeeds if Y is not in the list of friends
@@ -122,7 +124,7 @@ notLikes(G,X,Y):- notLikes1(G,G,X,Y).
 % dislikes1 helper recursive function
 % dislikes1(G,G,X,Y)
 % dislikes(G,X,Y)
-
+% [person(alice,[bob]),person(bob,[carol]),person(carol,[])]
 dislikes1(_,[person(X,[])|_],X,_).
 dislikes1(G,[person(X,[H|T])|T1],X,Y):-
     different(G,H,Y),
