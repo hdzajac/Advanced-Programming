@@ -271,9 +271,6 @@ ind(G,[person(P,_)|T],Visited,X,Y,AL):-
     differentInListOne(G,AL,P),
     ind(G,T,Visited,X,Y,AL).
 
-indifferent(G,X,Y):-
-    ind(G,G,[],X,Y,[]).
-
 append1([],L,L).
 
 append1([H|T],L,[H|T1]):-
@@ -282,53 +279,34 @@ append1([H|T],L,[H|T1]):-
 
 
 
-%bfs(G,G',Visited,ToVi
-bfs(G,_,Visited,[],_,Y,Visited):-
-    differentInListOne(G,Visited,Y).
+bfs(G,_,[H|[]],[],X,Y):-
+    differentInListOne(G,[H],X),
+    different(G,X,Y).
 
+bfs(G,_,[H,H2|T],[],X,Y):-
+    different(G,X,Y).
 
-bfs(G,[person(ToVisitH,[])|_],Visited,[ToVisitH|[]],X,Y,R):-
+bfs(G,[person(ToVisitH,[])|_],Visited,[ToVisitH|ToVisitT],X,Y):-
     differentInListOne(G,Visited,ToVisitH),
-    bfs(G,G,[ToVisitH|Visited],[],X,Y,R).
+    notLikes(G,ToVisitH, Y),
+    bfs(G,G,[ToVisitH|Visited],ToVisitT,X,Y).
 
-
-bfs(G,[person(ToVisitH,[])|_],Visited,[ToVisitH|ToVisitT],X,Y,R):-
+bfs(G,[person(ToVisitH,[H|T])|_],Visited,[ToVisitH|ToVisitT],X,Y):-
     differentInListOne(G,Visited,ToVisitH),
-    bfs(G,G,[ToVisitH|Visited],ToVisitT,X,Y,R).
+    notLikes(G,ToVisitH, Y),
+    append1(ToVisitT,[H|T],R),
+    bfs(G,G,[ToVisitH|Visited],R,X,Y).
 
+bfs(G,[person(ToVisitH,_)|_],Visited,[ToVisitH|ToVisit],X,Y):-
+    notLikes(G,ToVisitH, Y),
+    bfs(G,G,Visited,ToVisit,X,Y).
 
-bfs(G,[person(ToVisitH,[H|[]])|_],Visited,[ToVisitH|ToVisitT],X,Y,R):-
-    differentInListOne(G,ToVisitT,H),
-    differentInListOne(G,Visited,H),
-    differentInListOne(G,Visited,ToVisitH),
-    append1(ToVisitT,[H],R1),
-    bfs(G,G,[ToVisitH|Visited],R1,X,Y,R).
+bfs(G,[_|T],Visited,[ToVisitH|ToVisitT],X,Y):-
+    bfs(G,T,Visited,[ToVisitH|ToVisitT],X,Y).
 
-bfs(G,[person(ToVisitH,[H|[]])|T],Visited,[ToVisitH|[]],X,Y,R):-
-    isMember(H,Visited),
-    bfs(G,T,[ToVisitH|Visited],[],X,Y,R).
-
-
-bfs(G,[person(ToVisitH,[H|T])|T1],Visited,[ToVisitH|ToVisitT],X,Y,R):-
-    differentInListOne(G,ToVisitT,H),
-    differentInListOne(G,Visited,H),
-    append1([ToVisitH|ToVisitT],[H],R1),
-    bfs(G,[person(ToVisitH,T)|T1],[ToVisitH|Visited],R1,X,Y,R).
-
-bfs(G,[person(ToVisitH,[H|T])|T1],Visited,[ToVisitH|ToVisit],X,Y,R):- %
-    notLikes(G,ToVisitH,Y),
-    bfs(G,[person(ToVisitH,T)|T1],[H|Visited],[ToVisitH|ToVisit],X,Y,R).
-
-bfs(G,[person(P,_)|T],Visited,[ToVisitH|ToVisitT],X,Y,R):-
-    bfs(G,T,[P|Visited],[ToVisitH|ToVisitT],X,Y,R).
-
-
-
-
-bfsStart(G,X,Y,R):-
-    bfs(G,G,[],[X],X,Y,R).
-
-
+indifferent(G,X,Y):-
+    notLikes(G,X,Y),
+    bfs(G,G,[],[X],X,Y).
 
 
 %!
