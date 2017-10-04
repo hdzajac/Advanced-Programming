@@ -180,7 +180,7 @@ friendly1(G,[person(P,[H|T])|T2],X,F):-
     different(G,H,X),
     friendly1(G,[person(P,T)|T2],X,F).
 friendly(G,X):-
-    inList(X,G),
+    inGraph(X,G),
     friendly1(G,G,X,0).
 
 % X is hostile if X dislikes everyone who dislikes him/her
@@ -199,7 +199,7 @@ hostile1(G,[person(P,[H|T])|T2],X,F):-
     different(G,H,X),
     hostile1(G,[person(P,T)|T2],X,F).
 hostile(G,X):-
-    inList(X,G),
+    inGraph(X,G),
     hostile1(G,G,X,0).
 
 
