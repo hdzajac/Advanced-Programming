@@ -57,43 +57,11 @@ pExpr =
 
 pExpr1 :: Parser Expr
 pExpr1 =
-  try ( do
-    e0 <- pExpr2
-    (pOperation e0))
+  do 
+    r0 <- try pRelationOp
+    return r0
   <|>
   pExpr2
-
-pOperation :: Expr -> Parser Expr
-pOperation e0 = do
-  void $ lexeme $ char '+'
-  e1 <- pExpr1
-  return (Call "+" [e0,e1])
-  <|>
-  do
-    void $ lexeme $ char '-'
-    e1 <- pExpr1
-    return (Call "-" [e0,e1])
-  <|>
-  do
-    void $ lexeme $ char '*'
-    e1 <- pExpr1
-    return (Call "*" [e0,e1])
-  <|>
-  do
-    void $ lexeme $ char '%'
-    e1 <- pExpr1
-    return (Call "%" [e0,e1])
-  <|>
-  do
-    void $ lexeme $ char '<'
-    e1 <- pExpr1
-    return (Call "<" [e0,e1])
-  <|>
-  do
-    void  $ lexeme $ string "==="
-    e1 <- pExpr1
-    return (Call "===" [e0,e1])
-
 
 pExpr2 :: Parser Expr
 pExpr2 = 
@@ -243,13 +211,29 @@ pString1 c0 = do
     void $ try $ char '\''
     return (String c0)
   <|> do
+    void $ try $ oneOf "\t"
+    pString1 (c0)
+  <|> do
     c1 <- anyChar
     pString1 (c0 ++ [c1])
 
 pEscape :: String -> Parser Expr
 pEscape c0 = do
-  c1 <- try $ oneOf "t\\n\'"
-  pString1 (c0 ++ [c1])
+  void $ try $ char 't'
+  pString1 (c0 ++ "\t")
+  <|> do
+    void $ try $ char 'n'
+    pString1 (c0 ++ "\n")
+  <|> do
+    void $ try $ char '\\'
+    pString1 (c0 ++ "\\")
+  <|> do
+    void $ try $ char '\n'
+    pString1 (c0)
+  <|> do
+    void $ char '\''
+    pString1 (c0 ++ "\'")
+
 
 
 pTrue :: Parser Expr

@@ -1,23 +1,15 @@
+
+%--------------------- U T I L S --------------------------
+
 g1([person(kara, [barry, clark]), person(bruce, [clark, oliver]), person(barry,[kara,oliver]),person(clark,[oliver,kara]),person(oliver,[kara])]).
 
-person(kara, [barry, clark]).
-person(bruce, [clark, oliver]).
-person(barry,[kara,oliver]).
-person(clark,[oliver,kara]).
-person(oliver,[kara]).
-
-isPerson(X):-
-    person(X,_).
-
 % returns list of persons from a graph
+% succeeds if LP is the list of persons from the graph
+% listOfPersons(G,LP)
 listOfPersons([],[]).
 listOfPersons([person(X,_)|T],[X|R]):-
     listOfPersons(T,R).
 
-
-% subgoal and satisfy - subgoal that M is member of L1 and
-% satisfies only if M is also member of L2
-overlap(L1,L2):- isMember(M,L1), isMember(M,L2).
 
 %succeeds if L1 is included in L2
 %incusion(L1,L2).
@@ -27,35 +19,43 @@ inclusion([H|T],L):-
     inclusion(T,L).
 
 
-
-%----------- UTILS----------------%
-
+% Succeeds if M is found/is a member of the list L
+% isMember(M,L)
 isMember(M,[M|_]).
 isMember(M,[_|T]):- isMember(M,T).
 
+
 % succeeds if all elements of the list L are different
-% elements in the graph g
-% differentInList(G,L).
-%
+% from the element E
+% differentInListOne(G,L,E).
 
 differentInListOne(_,[],_).
 differentInListOne(G,[H|T],E):-
     different(G,E,H),
     differentInListOne(G,T,E).
 
+% appends second to first list passed as arguments and returns result as the last one
+append1([],L,L).
+append1([H|T],L,[H|T1]):-
+    append1(T,L,T1).
+
+% succeeds if contains everyone from X in L
+containsEveryone([],_).
+containsEveryone([HX|HT],L):-
+    isMember(HX,L),
+    containsEveryone(HT,L).
+
+% succeeds if all elements of the list L are different
+% elements in the graph G
+% differentInList(G,L).
+
 differentInList(_,[_|[]]).
 differentInList(G,[H|T]):-
     differentInListOne(G,T,H),
     differentInList(G,T).
 
-
+% suceeds of 2 elements are equal
 equals(X,X).
-
-duplicate([H|T],X):-
-    equals(H,X),
-    isMember(X,T).
-duplicate([_|T],X):- duplicate(T,X).
-
 
 % Succeeds if X is a person in the graph G
 % inGraph(X,G)
@@ -72,19 +72,8 @@ inList(X,[person(_,[_|T])|T1]):-
 inList(X,[person(_,[])|T1]):-
     inList(X,T1).
 
-% Removes X from graph and returns new Graph in last argument
-% Remove (G, X, G1)
 
-remove([],_,_).
-remove([person(X,_)|T], X, G):-
-    remove(T,X,G).
-remove([H|T], X, G):-
-    remove(T,X,[H|G]).
-
-
-
-
-%----------------------------------$
+%-----------------------------------------------------------$
 
 
 % Succeeds if X likes Y in graph
@@ -128,6 +117,7 @@ notLikes(G,X,Y):- notLikes1(G,G,X,Y).
 % dislikes1(G,G,X,Y)
 % dislikes(G,X,Y)
 % [person(alice,[bob]),person(bob,[carol]),person(carol,[])]
+%
 dislikes1(_,[person(X,[])|_],X,_).
 dislikes1(G,[person(X,[H|T])|T1],X,Y):-
     different(G,H,Y),
@@ -211,16 +201,26 @@ hostile(G,X):-
 %
 
 
-admires2(G,X,Y,R):-
-    differentInList(G,[Y|R]),
-    likes(G,X,Y).
-admires2(G,X,Y,R):-
-    likes(G,X,Z),
-    differentInList(G,[Z|R]),
-    admires2(G,Z,Y,[Z|R]).
+bfsA(G,[person(CurrentH,_)|_],_,[CurrentH|_],_,Y,_):-
+    likes(G,CurrentH,Y).
 
+bfsA(G,[person(CurrentH,L)|_],Visited,[CurrentH|_],X,Y,History):-
+    differentInListOne(G,Visited,CurrentH),
+    notLikes(G,CurrentH,Y),
+    append1(History, L, History1),
+    bfsA(G,G,[CurrentH|Visited],History1,X,Y,History1).
+
+bfsA(G,[person(CurrentH,_)|_],Visited,[CurrentH|Current],X,Y,History):-
+    bfsA(G,G,Visited,Current,X,Y,History).
+
+bfsA(G,[_|T],Visited,[CurrentH|CurrentT],X,Y,History):-
+    bfsA(G,T,Visited,[CurrentH|CurrentT],X,Y,History).
+
+%G,G,Visited,Current,X,Y,History
 admires(G,X,Y):-
-    admires2(G,X,Y,[X]).
+    different(G,X,Y),
+    bfsA(G,G,[],[X],X,Y,[X]).
+
 
 
 
@@ -229,84 +229,31 @@ admires(G,X,Y):-
 % Succeeds if X is indifferent to Y
 % indifferent(G, X, Y)
 
-% IDEA: collect all elements from admires namely Z in a list
-% then we can check that Y does not belong in that list
-% - equivalent of findall
-% I think the only way to represent indifferent is through a disjoint
-% set formed of admires and the rest of the elements in the graph. I
-% cannot find a logical equivalence.
 
-myFindall(_,[],_,R,R).
-myFindall(G,[person(P,_)|T],X,L,R):-
-    admires(G,X,P),
-    myFindall(G,T,X,[P|L],R).
-myFindall(G,[person(_,_)|T],X,L,R):-
-    myFindall(G,T,X,L,R).
+bfs(_,_,[VisitedH|VisitedT],[],_,_,History):-
+    containsEveryone(History,[VisitedH|VisitedT]).
 
+bfs(G,[person(CurrentH,L)|_],Visited,[CurrentH|_],X,Y,History):-
+    differentInListOne(G,Visited,CurrentH),
+    notLikes(G,CurrentH, Y),
+    append1(History, L, History1),
+    bfs(G,G,[CurrentH|Visited],History1,X,Y,History1).
 
+bfs(G,[person(CurrentH,_)|_],Visited,[CurrentH|Current],X,Y,History):-
+    notLikes(G,CurrentH, Y),
+    bfs(G,G,Visited,Current,X,Y,History).
 
+bfs(G,[_|T],Visited,[CurrentH|CurrentT],X,Y,History):-
+    bfs(G,T,Visited,[CurrentH|CurrentT],X,Y,History).
 
-
-myFindall1(_,[],_,[]).
-myFindall1(G,[person(P,_)|T],X,[P|L]):-
-    admires(G,X,P),
-    myFindall1(G,T,X,L).
-myFindall1(G,[person(_,_)|T],X,L):-
-    myFindall1(G,T,X,L).
-
-findallAdmires(G,X,R):-
-    myFindall1(G,G,X,R).
-
-ind(G,[],Visited,_,Y,AL):-
-    differentInListOne(G,AL,Y),
-    differentInListOne(G,Visited,Y).
-
-
-ind(G,[person(P,_)|T],Visited,X,Y,AL):-
-    admires(G,X,P),
-    ind(G,T,[P|Visited],X,Y,[P|AL]).
-
-ind(G,[person(P,_)|T],Visited,X,Y,AL):-
-    differentInListOne(G,Visited,P),
-    differentInListOne(G,AL,P),
-    ind(G,T,Visited,X,Y,AL).
-
-append1([],L,L).
-
-append1([H|T],L,[H|T1]):-
-	append1(T,L,T1).
-
-
-
-
-bfs(G,_,[H|[]],[],X,Y):-
-    differentInListOne(G,[H],X),
-    different(G,X,Y).
-
-bfs(G,_,[H,H2|T],[],X,Y):-
-    different(G,X,Y).
-
-bfs(G,[person(ToVisitH,[])|_],Visited,[ToVisitH|ToVisitT],X,Y):-
-    differentInListOne(G,Visited,ToVisitH),
-    notLikes(G,ToVisitH, Y),
-    bfs(G,G,[ToVisitH|Visited],ToVisitT,X,Y).
-
-bfs(G,[person(ToVisitH,[H|T])|_],Visited,[ToVisitH|ToVisitT],X,Y):-
-    differentInListOne(G,Visited,ToVisitH),
-    notLikes(G,ToVisitH, Y),
-    append1(ToVisitT,[H|T],R),
-    bfs(G,G,[ToVisitH|Visited],R,X,Y).
-
-bfs(G,[person(ToVisitH,_)|_],Visited,[ToVisitH|ToVisit],X,Y):-
-    notLikes(G,ToVisitH, Y),
-    bfs(G,G,Visited,ToVisit,X,Y).
-
-bfs(G,[_|T],Visited,[ToVisitH|ToVisitT],X,Y):-
-    bfs(G,T,Visited,[ToVisitH|ToVisitT],X,Y).
-
+%G,G,Visited,Current,X,Y,History
 indifferent(G,X,Y):-
     notLikes(G,X,Y),
-    bfs(G,G,[],[X],X,Y).
+    different(G,X,Y),
+    bfs(G,G,[],[X],X,Y,[X]).
+
+
+
 
 
 %!
@@ -371,3 +318,6 @@ same_world(G,H,A):-
     listOfPersons(G,GL),
     listOfPersons(H,HL),
     sameWorld1(G,H,GL,HL,A).
+
+
+

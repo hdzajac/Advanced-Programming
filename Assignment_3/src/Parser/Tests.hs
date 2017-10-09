@@ -21,9 +21,9 @@ i3 = parseWWS pStart  "dsADS_123___"
 
 s1 = parseWWS pString  "'@DF!#!   '"
 s2 = parseWWS pString  "'_!!  dsadeqw'"
-s3 = parseWWS pString  "\'==}\'dsdsa22\'\'222\'"
+s3 = parseWWS pString  "'==}\\'dsdsa22\\'\\'222'"
 s4 = parseWWS pString  "' '"
-s5 = parseWWS pString  "\'\t \' '\n\'"
+s5 = parseWWS pString  "'\\t \\\' \\\'\\n\'"
 s6 = parseWWS pString  "'   '"
 
 -- s4 = parseWWS pString "true"
@@ -42,7 +42,7 @@ es1 = parseWWS pStart  "5,x"
 es2 = parseWWS pStart  " 5 ,   x , 120,undefined"
 
 o1 = parseWWS pStart "a + b"
-o2 = parseWWS pStart "a +b +b- 3"
+o2 = parseWWS pStart "a + b + b - 3"
 o3 = parseWWS pStart "a === b "
 
 a1 = parseWWS pStart "[ for ( x of ( 3 + 3 ) ) y ]"
@@ -62,9 +62,9 @@ testi3 = TestCase $ assertEqual "Ident 3" (Right (Var "dsADS_123___")) (i3)
 
 tests1 = TestCase $ assertEqual "String 1" (Right (String "@DF!#!   ")) (s1)
 tests2 = TestCase $ assertEqual "String 2" (Right (String "_!!  dsadeqw")) (s2)
-tests3 = TestCase $ assertEqual "String 3" (Right (String "==}'dsdsa22''222")) (s3)
+tests3 = TestCase $ assertEqual "String 3" (Right (String "==}\\'dsdsa22\\'\\'222")) (s3)
 tests4 = TestCase $ assertEqual "String 4" (Right (String " ")) (s4)
-tests5 = TestCase $ assertEqual "String 5" (Right (String "")) (s5)
+tests5 = TestCase $ assertEqual "String 5" (Right (String "\\\t \\' \\'\\\n")) (s5)
 tests6 = TestCase $ assertEqual "String 6" (Right (String "   ")) (s6)
 -- tests4 = TestCase $ assertEqual "String 4" (Right (String "@DF!#!   ")) (s4) -- todo: how to mah against PerseError - impossibru the constructor is private :c
 
