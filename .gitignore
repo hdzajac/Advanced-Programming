@@ -6,3 +6,7 @@
 group.txt
 *.zip
 *.pl~
+Assignment_5/.idea
+Assignment_5/out
+*.iml
+*.beam

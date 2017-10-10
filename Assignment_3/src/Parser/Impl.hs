@@ -7,7 +7,6 @@ import Text.Parsec.Prim
 import Control.Monad
 import Text.Parsec
 
-
 keywords :: [String]
 keywords = [ "true", "false", "for", "undefined", "of", "if", "case", "do"]
 
@@ -44,7 +43,7 @@ parseString = parseWWS pStart
 pStart :: Parser Expr
 pStart = do
   e0 <- pExpr
-  void $ eof
+  void eof
   return e0
 
 pExpr :: Parser Expr
@@ -196,7 +195,6 @@ pNumber =
      if length t > 8 then fail "Number too large"
                          else return (Number (-1 * (listToInt (t))))
 
-
 pString :: Parser Expr
 pString = lexeme $ do
   void $ char '\''
@@ -211,17 +209,11 @@ pString1 c0 = do
     void $ try $ char '\''
     return (String c0)
   <|> do
-    void $ try $ oneOf "\t"
-    pString1 (c0)
-  <|> do
-    c1 <- anyChar
+    c1 <- (try $ oneOf "`~!@#$%^&_{}[]()+-=*%|,;:><.?/ \"   " <|> alphaNum)
     pString1 (c0 ++ [c1])
 
 pEscape :: String -> Parser Expr
 pEscape c0 = do
-  void $ try $ char 't'
-  pString1 (c0 ++ "\t")
-  <|> do
     void $ try $ char 'n'
     pString1 (c0 ++ "\n")
   <|> do
@@ -231,9 +223,11 @@ pEscape c0 = do
     void $ try $ char '\n'
     pString1 (c0)
   <|> do
+  void $ try $ char 't'
+  pString1 (c0 ++ "\t")
+  <|> do
     void $ char '\''
     pString1 (c0 ++ "\'")
-
 
 
 pTrue :: Parser Expr
