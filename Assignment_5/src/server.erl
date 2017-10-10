@@ -17,5 +17,5 @@
 -record(room, {id, players, questions}).
 
 
-getRoom([])-> [#room{id = 0, players = [], questions = []}];
-getRoom([H|T]) -> [#room{id = H#room.id + 1, players = [], questions = [] }|[H|T]].
+get_a_room([])-> [#room{id = 0, players = [], questions = []}];
+get_a_room([H|T]) -> [#room{id = H#room.id + 1, players = [], questions = [] }|[H|T]].

@@ -20,9 +20,23 @@ start() -> gen_server:start_link({local,kaboose_server},?MODULE,[],[]).
 
 init(_) -> {ok,[]}.
 
+
+%% Sync
 handle_call({get_a_room}, _ , Server) ->
-  [H|T] = server:getRoom(Server),
+  [H|T] = server:get_a_room(Server),
   {reply, {ok, H}, [H|T]}.
 
+
+%% Async
 handle_cast(Request, State) ->
   erlang:error(not_implemented).
+
+
+
+
+handle_info(_Message, Server) ->
+  {noreply, Server}.
+
+terminate(Reason, _Value) ->
+  io:format("Server stopped.~n"),
+  Reason.
