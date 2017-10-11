@@ -149,10 +149,11 @@ handle_call({guess, Ref, I}, _From, State) ->
               Res3 = maps:get(results, State1),
               LastQ = Res3#result.lastQ,
               State2 = maps:update(results, Res3#result{lastQ = maps:put(Ref, Points, LastQ)},State1),
-              Total = Res3#result.total,
+              Res4 = maps:get(results, State2),
+              Total = Res4#result.total,
               case maps:is_key(Ref, Total) of
-                true -> State3 = maps:update(results, Res3#result{total = Total#{Ref => Points + maps:get(Ref, Res3#result.total)}},State2);
-                false -> State3 = maps:update(results, Res3#result{total = Total#{Ref => Points}},State2)
+                true -> State3 = maps:update(results, Res4#result{total = Total#{Ref => Points + maps:get(Ref, Res4#result.total)}},State2);
+                false -> State3 = maps:update(results, Res4#result{total = Total#{Ref => Points}},State2)
               end,
               {reply, {ok, "Correct Answer " }, State3}
           end
