@@ -78,7 +78,6 @@ get_a_room([])-> [#room{id = 0, questions = []}];
 get_a_room([H|T]) -> [#room{id = H#room.id + 1, questions = [] }|[H|T]].
 
 
-%% TODO: check answers
 add_question([], _ , _ ) -> {error, "Can't add questions to empty server"};
 add_question([H|T], RoomID, {Description, Answers}) ->
   case find_room([H|T],RoomID) of

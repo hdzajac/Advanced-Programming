@@ -11,7 +11,7 @@
 
 
 %% API
--export([get_a_room/1, add_question/2, start/0, get_questions/1, play/1, next/1, timesup/1, join/2, leave/2, rejoin/2, guess/3, do/0]).
+-export([get_a_room/1, add_question/2, start/0, get_questions/1, play/1, next/1, timesup/1, join/2, leave/2, rejoin/2, guess/3]).
 
 start() -> gen_server:start_link({local,kaboose_server},kaboose_server,[],[]),
           {ok, kaboose_server}.
@@ -45,39 +45,3 @@ rejoin(ActiveRoom, Ref) ->
 
 guess(ActiveRoom, Ref, Index) ->
   gen_server:call(ActiveRoom, {guess, Ref, Index}).
-
-do()->
-  kaboose:get_a_room(kaboose_server),
-  kaboose:add_question(0,{desc1,[a,{correct,b}]}),
-  kaboose:add_question(0,{desc2,[b,{correct,c}]}),
-  {Id1,_Id2}=kaboose:play(0),
-  kaboose:next(Id1),
-  kaboose:guess(Id1,a,1),
-  kaboose:timesup(Id1),
-  kaboose:next(Id1),
-  kaboose:guess(Id1,a,2),
-  kaboose:timesup(Id1).
-
-%%loop(State) ->
-%%  receive
-%%    {_CRef, {player_joined, _Name, Active}} ->
-%%      Result = maps:is_key(active, State),
-%%      if
-%%        Result == true ->
-%%          State1 = State#{active => Active};
-%%        true ->
-%%          State1 = State#{active => 1}
-%%      end,
-%%      loop(State1);
-%%    {_CRef, {player_left, _Name, Active}} ->
-%%      Result = maps:is_key(active, State),
-%%      if
-%%        Result == true ->
-%%          State1 = State#{active => Active},
-%%          loop(State1);
-%%        true ->
-%%          loop(State)
-%%      end;
-%%    crash -> ok
-%%  end.
-

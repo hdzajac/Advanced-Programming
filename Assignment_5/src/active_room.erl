@@ -66,16 +66,13 @@ handle_call({timesup}, {From, _Tag}, State) ->
         true ->
           State1 = maps:update(active, false, State),
           State2 = maps:update_with(currentQuestion,fun(V) -> V + 1 end, State1),
-          erlang:display(I),
-          erlang:display(Size),
-          erlang:display(State2),
           if
             I + 1 == Size ->
-              erlang:display("In da last loop"),
               Res = maps:get(results, State2),
               State3 = maps:update(results, Res#result{final = true}, State2 ),
+              Res2 = maps:get(results, State3),
               {_Desc, Answers} = array:get(maps:get(currentQuestion, State3) - 1, maps:get(questions, State3)),
-              Response = {ok, make_me_a_list(Res#result.dist, length(Answers),0), Res#result.lastQ, Res#result.total, Res#result.final},
+              Response = {ok, make_me_a_list(Res2#result.dist, length(Answers),0), Res2#result.lastQ, Res2#result.total, Res2#result.final},
               {reply, Response, State3};
             I + 1 < Size ->
               Res = maps:get(results, State2),
