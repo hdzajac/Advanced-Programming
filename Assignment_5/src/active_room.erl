@@ -67,7 +67,8 @@ handle_call({timesup}, From, State) ->
           State2 = maps:update_with(currentQuestion,fun(V) -> V + 1 end, State1),
           if
             I + 1 == Size ->
-              State3 = maps:update(results, false, maps:get(results, State2)#result{final = true}),
+              Res = maps:get(results, State2),
+              State3 = maps:update(results, false, Res#result{final = true}),
               {reply, {ok, maps:get(results, State3)}, State3};
             true ->
               {reply, {ok, maps:get(results, State2)}, State2}
@@ -106,33 +107,43 @@ handle_call({leave, Nick}, _From, State) ->
           gen_server:call(maps:get(conductor, State1), {maps:get(conductor, State1),{player_left, Nick, size(maps:get(players, State1))}}),
           {reply, {ok, Nick}, State1}
       end
-  end.
+  end;
 
-%%handle_call({guess, Ref, Index}, _From, State) ->
-%%  case maps:get(active, State) of
-%%    false ->
-%%      {reply, {error, "No question was asked", State}};
-%%    true ->
-%%      {Description, Answers} = array:get(maps:get(currentQuestion, State),maps:get(questions, State)),
-%%      Size = size(Answers),
-%%      if
-%%        Index >= Size ->
-%%          {reply, {error, "Index out of bound, can't pick and answer that doesn't exist"}, State};
-%%        true ->
-%%          Res = maps:get(results, State),
-%%          Res2 = Res#result{dist = maps:update_with(Index, fun(X) -> X + 1 end, State)},
-%%          State1 = maps:update(results, Res2, State),
-%%          case is_answer_correct(Answers, Index) of
-%%            false ->
-%%              {reply, {ok, false}, State1};
-%%            true ->
-%%
-%%
-%%          end
-%%      end
-%%      _ ->
-%%      {reply, {error, "Weird error in guess"}, State}
-%%  end.
+handle_call({guess, Ref, Index}, _From, State) ->
+  Time = erlang:system_time(millisecond),
+  case maps:get(active, State) of
+    false ->
+      {reply, {error, "No question was asked", State}};
+    true ->
+      {_Description, Answers} = array:get(maps:get(currentQuestion, State),maps:get(questions, State)),
+      Size = size(Answers),
+      if
+        Index >= Size ->
+          {reply, {error, "Index out of bound, can't pick and answer that doesn't exist"}, State};
+        true ->
+          Res = maps:get(results, State),
+          Res2 = Res#result{dist = maps:update_with(Index, fun(X) -> X + 1 end, State)},
+          State1 = maps:update(results, Res2, State),
+          case is_answer_correct(Answers, Index) of
+            false ->
+              {reply, {ok, false}, State1};
+            true ->
+              Points = calculate_points(State, Time),
+              LastQ = Res2#result.lastQ,
+              State2 = maps:update(result, Res2#result{lastQ = LastQ#{Ref => Points}},State1),
+              Total = Res2#result.total,
+              case maps:get(currentQuestion, State2) of
+                0 ->
+                  State3 = maps:update(result, Res2#result{total = Total#{Ref => Points}},State2);
+                _ ->
+                  State3 = maps:update(result, Res2#result{total = Total#{Ref => Points + maps:get(Ref, Res2#result.total)}},State2)
+              end,
+              {reply, {ok, "Correct Answer +" + Points + " points." }, State3}
+          end
+      end;
+      _ ->
+        {reply, {error, "Weird error in guess"}, State}
+  end.
 
 
 
@@ -149,3 +160,23 @@ terminate(_Reason, _Value) ->
 
 code_change(_OldVsn, [], _Extra) ->
   {ok, []}.
+
+
+%% Utils
+is_answer_correct([], _Index) ->
+  false;
+
+is_answer_correct([{correct, _}], 0) ->
+  true;
+
+is_answer_correct([_H|T], Index) ->
+  is_answer_correct(T, Index - 1).
+
+
+
+calculate_points(#{activationTime := ActTime}, Time) ->
+  Diff = Time - ActTime,
+  if
+    Diff >= 500 -> 500;
+    true -> 1000
+  end.
