@@ -37,9 +37,9 @@ handle_call({get_questions, RoomID}, _, State) ->
   Room = get_questions(State, RoomID),
   {reply, Room#room.questions, State};
 
-handle_call({play, RoomID}, {From, _}, State) ->
-  {ok, ActiveRoom} = gen_server:start_link(active_room,[lists:keyfind(RoomID, 2, State), From],[]),
-  {reply, {ActiveRoom, From}, State}.
+handle_call({play, RoomID, CondPID}, _From, State) ->
+  {ok, ActiveRoom} = gen_server:start_link(active_room,[lists:keyfind(RoomID, 2, State), CondPID],[]),
+  {reply, {ActiveRoom, CondPID}, State}.
 
 
 
