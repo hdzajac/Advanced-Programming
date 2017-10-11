@@ -31,11 +31,17 @@ handle_call({get_a_room}, _ , State) ->
 
 handle_call({add_question, Room, {Description, Answers}}, _, State) ->
   [H|T] = add_question(State, Room, {Description, Answers}),
-  {reply, ok, [H|T]};
+  case add_question(State, Room, {Description, Answers}) of
+    [H|T] -> {reply, ok, [H|T]};
+    {error,Msg} -> {reply,{error,Msg},State}
+  end;
 
 handle_call({get_questions, RoomID}, _, State) ->
   Room = get_questions(State, RoomID),
-  {reply, Room#room.questions, State};
+  case Room of
+    #room{id=_ID,questions=_Questions} -> {reply, Room#room.questions, State};
+    {error,Msg} -> {reply,{error,Msg},State}
+  end;
 
 handle_call({play, RoomID, CondPID}, _From, State) ->
   {ok, ActiveRoom} = gen_server:start_link(active_room,[lists:keyfind(RoomID, 2, State), CondPID],[]),

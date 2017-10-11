@@ -66,14 +66,18 @@ handle_call({timesup}, {From, _Tag}, State) ->
         true ->
           State1 = maps:update(active, false, State),
           State2 = maps:update_with(currentQuestion,fun(V) -> V + 1 end, State1),
+          erlang:display(I),
+          erlang:display(Size),
+          erlang:display(State2),
           if
             I + 1 == Size ->
+              erlang:display("In da last loop"),
               Res = maps:get(results, State2),
               State3 = maps:update(results, Res#result{final = true}, State2 ),
               {_Desc, Answers} = array:get(maps:get(currentQuestion, State3) - 1, maps:get(questions, State3)),
               Response = {ok, make_me_a_list(Res#result.dist, length(Answers),0), Res#result.lastQ, Res#result.total, Res#result.final},
               {reply, Response, State3};
-            true ->
+            I + 1 < Size ->
               Res = maps:get(results, State2),
               {_Desc, Answers} = array:get(maps:get(currentQuestion, State2) -1, maps:get(questions, State2)),
               Response = {ok, make_me_a_list(Res#result.dist, length(Answers),0), Res#result.lastQ, Res#result.total, Res#result.final},
@@ -125,9 +129,9 @@ handle_call({guess, Ref, I}, _From, State) ->
       {_Description, Answers} = array:get(maps:get(currentQuestion, State),maps:get(questions, State)),
       Size = length(Answers),
       if
-        Index == Size ->
+        Index >= Size ->
           {reply, {error, "Index out of bound, can't pick and answer that doesn't exist"}, State};
-        true ->
+        Index < Size ->
           Res = maps:get(results, State),
           case maps:is_key(Index, Res#result.dist) of
             true ->
@@ -141,8 +145,8 @@ handle_call({guess, Ref, I}, _From, State) ->
             false ->
               {reply, {ok, false}, State1};
             true ->
-              Points = calculate_points(State, Time),
-              Res3 = maps:get(results, State),
+              Points = calculate_points(State1, Time),
+              Res3 = maps:get(results, State1),
               LastQ = Res3#result.lastQ,
               State2 = maps:update(results, Res3#result{lastQ = maps:put(Ref, Points, LastQ)},State1),
               Total = Res3#result.total,
