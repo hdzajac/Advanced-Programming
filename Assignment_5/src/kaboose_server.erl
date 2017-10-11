@@ -37,7 +37,7 @@ handle_call({get_questions, RoomID}, _, State) ->
   Room = get_questions(State, RoomID),
   {reply, Room#room.questions, State};
 
-handle_call({play, RoomID}, From, State) ->
+handle_call({play, RoomID}, {From, _}, State) ->
   {ok, ActiveRoom} = gen_server:start_link(active_room,[lists:keyfind(RoomID, 2, State), From],[]),
   {reply, {ActiveRoom, From}, State}.
 
@@ -59,10 +59,12 @@ code_change(_OldVsn, [], _Extra) ->
 
 
 
-find_room([H|T],ID) when is_record(H, room)-> if
-                                                H#room.id == ID -> H;
-                                                true -> find_room(T,ID)
-                                              end;
+find_room([H|T],ID) when is_record(H, room) ->
+  if
+    H#room.id == ID -> H;
+    true -> find_room(T,ID)
+  end;
+
 find_room([],_) -> false.
 
 
