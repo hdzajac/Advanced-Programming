@@ -55,7 +55,7 @@ do()->
   kaboose:guess(Id1,a,1),
   kaboose:timesup(Id1),
   kaboose:next(Id1),
-  kaboose:guess(Id1,a,1),
+  kaboose:guess(Id1,a,2),
   kaboose:timesup(Id1).
 
 %%loop(State) ->
