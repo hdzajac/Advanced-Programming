@@ -13,13 +13,13 @@
 %% API
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -record(room, {id, questions}).
--record(result, {dist, lastQ, total, final}).
+-record(result, {ok, dist, lastQ, total, final}).
 -record(state, {results, questions, currentQuestion, active, conductor, players, activationTime}).
 
 
 
 init([Room, From]) ->
-  Results = #result{dist = #{}, lastQ = #{}, total = #{}, final = false },
+  Results = #result{ok = ok, dist = [], lastQ = #{}, total = #{}, final = false },
   State = #state{results = Results,
     questions = array:from_list(Room#room.questions),
     currentQuestion = 0,
@@ -33,20 +33,21 @@ handle_call({next_question}, {From, _Tag}, S) ->
   Conductor = S#state.conductor,
   if
     Conductor == From ->
-      S1 = S#state{results = S#state.results#result{lastQ = #{}}},
-      I = S1#state.currentQuestion,
-      Questions = S1#state.questions,
+      I = S#state.currentQuestion,
+      Questions = S#state.questions,
       Size = array:size(Questions),
-      Active = S1#state.active,
+      Active = S#state.active,
       if
         I >= Size ->
-          {reply, {error, "Out of questions :c"}, S1};
+          {reply, {error, "Out of questions :c"}, S};
         Active == true ->
-          {reply, {error, has_active_question}, S1};
+          {reply, {error, has_active_question}, S};
         true ->
+          Question = array:get(I, Questions),
+          S0 = S#state{results = S#state.results#result{dist = list_init(length(element(2,Question)))}},
+          S1 = S0#state{results = S0#state.results#result{lastQ = #{}}},
           S2 = S1#state{active = true},
           S3 = S2#state{activationTime = erlang:system_time(millisecond)},
-          Question = array:get(I, Questions),
           {reply, {ok, Question}, S3}
       end;
     true ->
@@ -71,27 +72,11 @@ handle_call({timesup}, {From, _Tag}, S) ->
             I + 1 == Size ->
               Res = S2#state.results,
               S3 = S2#state{results = Res#result{final = true}},
-              Res2 = S3#state.results,
               {_Desc, Answers} = array:get(S3#state.currentQuestion - 1, S3#state.questions),
-              Response = {
-                ok,
-                make_me_a_list(Res2#result.dist, length(Answers),0),
-                Res2#result.lastQ,
-                Res2#result.total,
-                Res2#result.final
-              },
-              {reply, Response, S3};
+              {reply, S3#state.results, S3};
             I + 1 < Size ->
-              Res = S2#state.results,
               {_Desc, Answers} = array:get(S2#state.currentQuestion - 1, S2#state.questions),
-              Response = {
-                ok,
-                make_me_a_list(Res#result.dist, length(Answers),0),
-                Res#result.lastQ,
-                Res#result.total,
-                Res#result.final
-              },
-              {reply, Response, S2}
+              {reply, S2#state.results, S2}
           end
       end;
     true -> {reply, nice_try, S}
@@ -142,17 +127,8 @@ handle_call({guess, Ref, I}, _From, S) ->
         Index >= Size ->
           {reply, {error, "Index out of bound, can't pick and answer that doesn't exist"}, S};
         Index < Size ->
-          Res = S#state.results,
-          erlang:display(S#state.results),
           Dist = S#state.results#result.dist,
-          case maps:is_key(Index, Dist) of
-            true ->
-              Res2 = Res#result{dist = maps:update_with(Index, fun(X) -> X + 1 end, Res#result.dist)};
-            false ->
-              Dist = Res#result.dist,
-              Res2 = Res#result{dist = Dist#{Index => 1}}
-          end,
-          S1 = S#state{results = Res2},
+          S1 = S#state{results = S#state.results#result{dist = add_try(Dist, Index)}},
           case is_answer_correct(Answers, Index) of
             false ->
               {reply, {ok, false}, S1};
@@ -160,12 +136,12 @@ handle_call({guess, Ref, I}, _From, S) ->
               Points = calculate_points(S1, Time),
               Res3 = S1#state.results,
               LastQ = Res3#result.lastQ,
-              S2 = S1#state{results = S1#state.results#result{lastQ = maps:put(Ref, Points, LastQ)}},
+              S2 = S1#state{results = Res3#result{lastQ = maps:put(Ref, Points, LastQ)}},
               Res4 = S2#state.results,
               Total = Res4#result.total,
               case maps:is_key(Ref, Total) of
-                true -> S3 = S2#state{results = S2#state.results#result{total = Total#{Ref => Points + maps:get(Ref, Res4#result.total)}}};
-                false -> S3 = S2#state{results = S2#state.results#result{total = Total#{Ref => Points}}}
+                true -> S3 = S2#state{results = Res4#result{total = Total#{Ref => Points + maps:get(Ref, Res4#result.total)}}};
+                false -> S3 = S2#state{results = Res4#result{total = Total#{Ref => Points}}}
               end,
               {reply, {ok, "Correct Answer " }, S3}
           end
@@ -217,12 +193,15 @@ calculate_points(S, Time) ->
     true -> 1000
   end.
 
-
-make_me_a_list(_Map, 0,_Index)->
+list_init(0)->
   [];
 
-make_me_a_list(Map, Answers, Index)->
-  case maps:is_key(Index, Map) of
-    true -> [maps:get(Index, Map) | make_me_a_list(Map, Answers - 1, Index + 1)] ;
-    false ->  [0 | make_me_a_list(Map, Answers - 1, Index + 1)]
-  end.
+list_init(I) ->
+  [0|list_init(I-1)].
+
+
+add_try([H|T],0) ->
+  [H+1|T];
+
+add_try([H|T], I) ->
+  [H|add_try(T,I-1)].
