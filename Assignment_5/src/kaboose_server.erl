@@ -17,10 +17,7 @@
 
 
 %% server registered locally with id: "kaboose_server"
-
 init(_) -> {ok,[]}.
-
-
 
 %% Sync
 

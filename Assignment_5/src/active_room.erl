@@ -14,149 +14,164 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -record(room, {id, questions}).
 -record(result, {dist, lastQ, total, final}).
+-record(state, {results, questions, currentQuestion, active, conductor, players, activationTime}).
 
 
 
 init([Room, From]) ->
-  Map = #{},
-  Map1 = maps:put(id, Room#room.id, Map),
   Results = #result{dist = #{}, lastQ = #{}, total = #{}, final = false },
-  Map15 = maps:put(results, Results, Map1),
-  Map2 = maps:put(questions, array:from_list(Room#room.questions), Map15),
-  Map3 = maps:put(currentQuestion, 0, Map2),
-  Map4 = maps:put(active, false, Map3),
-  Map5 = maps:put(conductor, From, Map4),
-  Map6 = maps:put(players, [], Map5),
-  Map7 = maps:put(activationTime, 0, Map6),
-  {ok, Map7}.
+  State = #state{results = Results,
+    questions = array:from_list(Room#room.questions),
+    currentQuestion = 0,
+    active = false,
+    conductor = From,
+    players = [],
+    activationTime = 0},
+  {ok, State}.
 
-handle_call({next_question}, {From, _Tag}, State) ->
-  Conductor = maps:get(conductor, State),
+handle_call({next_question}, {From, _Tag}, S) ->
+  Conductor = S#state.conductor,
   if
     Conductor == From ->
-      I = maps:get(currentQuestion, State),
-      Questions  = maps:get(questions, State),
+      S1 = S#state{results = S#state.results#result{lastQ = #{}}},
+      I = S1#state.currentQuestion,
+      Questions = S1#state.questions,
       Size = array:size(Questions),
-      Active = maps:get(active, State),
-      if I >= Size ->
-          {reply, {error, "Out of questions :c"}};
+      Active = S1#state.active,
+      if
+        I >= Size ->
+          {reply, {error, "Out of questions :c"}, S1};
         Active == true ->
-          {reply, {error, has_active_question}, State};
+          {reply, {error, has_active_question}, S1};
         true ->
-          State3 = maps:update(active, true, State),
-          State4 = maps:update(activationTime, erlang:system_time(millisecond ),State3),
+          S2 = S1#state{active = true},
+          S3 = S2#state{activationTime = erlang:system_time(millisecond)},
           Question = array:get(I, Questions),
-          {reply, {ok, Question}, State4}
+          {reply, {ok, Question}, S3}
       end;
     true ->
-      {reply, {error, who_are_you}, State}
+      {reply, {error, who_are_you}, S}
   end;
 
 
-handle_call({timesup}, {From, _Tag}, State) ->
-  Conductor = maps:get(conductor, State),
+handle_call({timesup}, {From, _Tag}, S) ->
+  Conductor = S#state.conductor,
   if
     Conductor == From ->
-      I = maps:get(currentQuestion, State),
-      Active = maps:get(active, State),
-      Size = array:size(maps:get(questions, State)),
+      I = S#state.currentQuestion,
+      Active = S#state.active,
+      Size = array:size(S#state.questions),
       if
         Active == false ->
-          {reply, no_question_asked, State};
+          {reply, no_question_asked, S};
         true ->
-          State1 = maps:update(active, false, State),
-          State2 = maps:update_with(currentQuestion,fun(V) -> V + 1 end, State1),
+          S1 = S#state{active = false},
+          S2 = S1#state{currentQuestion = S1#state.currentQuestion + 1},
           if
             I + 1 == Size ->
-              Res = maps:get(results, State2),
-              State3 = maps:update(results, Res#result{final = true}, State2 ),
-              Res2 = maps:get(results, State3),
-              {_Desc, Answers} = array:get(maps:get(currentQuestion, State3) - 1, maps:get(questions, State3)),
-              Response = {ok, make_me_a_list(Res2#result.dist, length(Answers),0), Res2#result.lastQ, Res2#result.total, Res2#result.final},
-              {reply, Response, State3};
+              Res = S2#state.results,
+              S3 = S2#state{results = Res#result{final = true}},
+              Res2 = S3#state.results,
+              {_Desc, Answers} = array:get(S3#state.currentQuestion - 1, S3#state.questions),
+              Response = {
+                ok,
+                make_me_a_list(Res2#result.dist, length(Answers),0),
+                Res2#result.lastQ,
+                Res2#result.total,
+                Res2#result.final
+              },
+              {reply, Response, S3};
             I + 1 < Size ->
-              Res = maps:get(results, State2),
-              {_Desc, Answers} = array:get(maps:get(currentQuestion, State2) -1, maps:get(questions, State2)),
-              Response = {ok, make_me_a_list(Res#result.dist, length(Answers),0), Res#result.lastQ, Res#result.total, Res#result.final},
-              {reply, Response, State2}
+              Res = S2#state.results,
+              {_Desc, Answers} = array:get(S2#state.currentQuestion - 1, S2#state.questions),
+              Response = {
+                ok,
+                make_me_a_list(Res#result.dist, length(Answers),0),
+                Res#result.lastQ,
+                Res#result.total,
+                Res#result.final
+              },
+              {reply, Response, S2}
           end
       end;
-    true -> {reply, nice_try, State}
+    true -> {reply, nice_try, S}
 end;
 
-handle_call({join, Nick}, _From, State) ->
-  case maps:get(players, State) of
+handle_call({join, Nick}, _From, S) ->
+  case S#state.players of
     [] ->
-      State1 = State#{players => [{Nick}]},
-      maps:get(conductor, State1) ! {maps:get(conductor, State1),{player_joined, Nick, 1}},
-      {reply, {ok, Nick}, State1};
+      S1 = S#state{players = [{Nick}]},
+      S1#state.conductor ! {S1#state.conductor,{player_joined, Nick, 1}},
+      {reply, {ok, Nick}, S1};
     List ->
       case lists:keyfind(Nick, 1, List) of
         false ->
-          State1 = State#{players => [{Nick}|maps:get(players, State)]},
-          maps:get(conductor, State1) ! {maps:get(conductor, State1),{player_joined, Nick, length(maps:get(players, State1))}},
-          {reply, {ok, Nick}, State1};
+          S1 = S#state{players = [{Nick} | S#state.players]},
+          S1#state.conductor ! {S1#state.conductor,{player_joined, Nick, length(List) + 1}},
+          {reply, {ok, Nick}, S1};
         _ ->
-          {reply, {error, Nick, is_taken}, State}
+          {reply, {error, Nick, is_taken}, S}
       end
   end;
 
-handle_call({leave, Nick}, _From, State) ->
-  case maps:get(players, State) of
+handle_call({leave, Nick}, _From, S) ->
+  case S#state.players of
     [] ->
-      {reply, {error, "Can't leave an empty room", State}};
+      {reply, {error, "Can't leave an empty room", S}};
     List ->
       case lists:keyfind(Nick, 1, List) of
         false ->
-          {reply, {error, "Can't leave room you haven't entered"}, State};
+          {reply, {error, "Can't leave room you haven't entered"}, S};
         _Yes ->
-          State1 = State#{players => lists:keydelete(Nick, 1, List)},
-          maps:get(conductor, State1) ! {maps:get(conductor, State1),{player_left, Nick, length(maps:get(players, State1))}},
-          {reply, {ok, Nick}, State1}
+          S1 = S#state{players = lists:keydelete(Nick, 1, List)},
+          S1#state.conductor ! {S1#state.conductor,{player_left, Nick, length(List) - 1}},
+          {reply, {ok, Nick}, S1}
       end
   end;
 
-handle_call({guess, Ref, I}, _From, State) ->
+handle_call({guess, Ref, I}, _From, S) ->
   Index = I - 1,
   Time = erlang:system_time(millisecond),
-  case maps:get(active, State) of
+  case S#state.active of
     false ->
-      {reply, {error, "No question was asked", State}};
+      {reply, {error, "No question was asked", S}};
     true ->
-      {_Description, Answers} = array:get(maps:get(currentQuestion, State),maps:get(questions, State)),
+      {_Description, Answers} = array:get(S#state.currentQuestion, S#state.questions),
       Size = length(Answers),
       if
         Index >= Size ->
-          {reply, {error, "Index out of bound, can't pick and answer that doesn't exist"}, State};
+          {reply, {error, "Index out of bound, can't pick and answer that doesn't exist"}, S};
         Index < Size ->
-          Res = maps:get(results, State),
-          case maps:is_key(Index, Res#result.dist) of
+          Res = S#state.results,
+          erlang:display(S#state.results),
+          Dist = S#state.results#result.dist,
+          case maps:is_key(Index, Dist) of
             true ->
               Res2 = Res#result{dist = maps:update_with(Index, fun(X) -> X + 1 end, Res#result.dist)};
             false ->
               Dist = Res#result.dist,
               Res2 = Res#result{dist = Dist#{Index => 1}}
           end,
-          State1 = maps:update(results, Res2, State),
+          S1 = S#state{results = Res2},
           case is_answer_correct(Answers, Index) of
             false ->
-              {reply, {ok, false}, State1};
+              {reply, {ok, false}, S1};
             true ->
-              Points = calculate_points(State1, Time),
-              Res3 = maps:get(results, State1),
+              Points = calculate_points(S1, Time),
+              Res3 = S1#state.results,
               LastQ = Res3#result.lastQ,
-              State2 = maps:update(results, Res3#result{lastQ = maps:put(Ref, Points, LastQ)},State1),
-              Res4 = maps:get(results, State2),
+              S2 = S1#state{results = S1#state.results#result{lastQ = maps:put(Ref, Points, LastQ)}},
+              Res4 = S2#state.results,
               Total = Res4#result.total,
               case maps:is_key(Ref, Total) of
-                true -> State3 = maps:update(results, Res4#result{total = Total#{Ref => Points + maps:get(Ref, Res4#result.total)}},State2);
-                false -> State3 = maps:update(results, Res4#result{total = Total#{Ref => Points}},State2)
+                true -> S3 = S2#state{results = S2#state.results#result{total = Total#{Ref => Points + maps:get(Ref, Res4#result.total)}}};
+                false -> S3 = S2#state{results = S2#state.results#result{total = Total#{Ref => Points}}}
               end,
-              {reply, {ok, "Correct Answer " }, State3}
+              {reply, {ok, "Correct Answer " }, S3}
           end
       end;
       _ ->
-        {reply, {error, "Weird error in guess"}, State}
+        {reply, {error, "Weird error in guess"}, S}
   end.
 
 
@@ -194,7 +209,8 @@ is_answer_correct([_H|T], Index) ->
 
 
 
-calculate_points(#{activationTime := ActTime}, Time) ->
+calculate_points(S, Time) ->
+  ActTime = S#state.activationTime,
   Diff = Time - ActTime,
   if
     Diff >= 500 -> 500;
